@@ -1,7 +1,7 @@
 services:
   elysia-api:
     container_name: elysia-api
-    image: ghcr.io/asepharyana/asepharyana-hub/elysia-api:sha-5b087ae
+    image: ghcr.io/asepharyana/asepharyana-hub/elysia-api:sha-fe998aa
     restart: always
     networks:
       app-shared-net:
