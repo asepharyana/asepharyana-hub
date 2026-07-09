@@ -1,0 +1,74 @@
+http:
+  middlewares:
+    secure-headers:
+      headers:
+        sslRedirect: true
+        forceSTSHeader: true
+        stsSeconds: 31536000
+        stsIncludeSubdomains: true
+        stsPreload: true
+        frameDeny: true
+        contentTypeNosniff: true
+        browserXSSFilter: true
+        referrerPolicy: 'same-origin'
+        customResponseHeaders:
+          X-Content-Type-Options: 'nosniff'
+          X-Frame-Options: 'DENY'
+          X-XSS-Protection: '1; mode=block'
+          Referrer-Policy: 'same-origin'
+          Permissions-Policy: 'geolocation=(), microphone=(), camera=()'
+    compress:
+      compress:
+        minResponseBodyBytes: 256
+        excludedContentTypes:
+          - 'image/*'
+          - 'application/octet-stream'
+    retry:
+      retry:
+        attempts: 3
+    rate-limit:
+      rateLimit:
+        average: 100
+        burst: 50
+    buffer:
+      buffering:
+        maxRequestBodyBytes: 10485760
+        maxResponseBodyBytes: 10485760
+        memRequestBodyBytes: 1048576
+        memResponseBodyBytes: 1048576
+    admin-chain:
+      chain:
+        middlewares:
+          - secure-headers
+          - compress
+          - retry
+
+    # ── Useful Plugins ──
+    real-ip:
+      plugin:
+        real-ip:
+          excludednetworks:
+            - '127.0.0.1/32'
+          realipheader: 'CF-Connecting-IP'
+
+    block-sensitive-paths:
+      plugin:
+        blockpath:
+          regex:
+            - "^/\\.env"
+            - "^/\\.git"
+            - '^/wp-admin'
+            - "^/wp-login\\.php"
+            - "^/config\\.php"
+
+    # ── Common Chain ──
+    common-chain:
+      chain:
+        middlewares:
+          # - real-ip
+          # - block-sensitive-paths
+          - secure-headers
+          - compress
+          - retry
+          - rate-limit
+          - buffer

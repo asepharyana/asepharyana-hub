@@ -1,0 +1,21 @@
+services:
+  scraper-api:
+    container_name: scraper-api
+    image: ghcr.io/asepharyana/asepharyana-hub/scraper-api:sha-0899edc
+    restart: always
+    networks:
+      app-shared-net:
+        aliases:
+          - scraper-api
+    env_file:
+      - ../../.env
+    environment:
+      - REDIS_URL=redis://redis:6379
+      - JWT_SECRET=${JWT_SECRET:?JWT_SECRET is required}
+      - DATABASE_URL=${DATABASE_URL}
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://otlp-metrics-backend:4317
+      - OTEL_SERVICE_NAME=scraper-api
+networks:
+  app-shared-net:
+    name: app-shared-net
+    external: true

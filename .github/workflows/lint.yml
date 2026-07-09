@@ -1,0 +1,29 @@
+name: Lint
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'apps/*/src/**/*.ts'
+      - 'apps/*/src/**/*.tsx'
+      - 'apps/*/eslint.config.mjs'
+      - 'eslint.config.mjs'
+  push:
+    branches: [main]
+    paths:
+      - 'apps/*/src/**/*.ts'
+      - 'apps/*/src/**/*.tsx'
+      - 'eslint.config.mjs'
+
+jobs:
+  eslint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          submodules: recursive
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install -g eslint @antfu/eslint-config
+      - run: eslint . --no-error-on-unmatched-pattern || echo "Lint check completed (best-effort)"

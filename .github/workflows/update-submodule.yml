@@ -1,0 +1,32 @@
+name: Update Submodule Pointer
+on:
+  repository_dispatch:
+    types: [submodule-updated]
+
+permissions:
+  contents: write
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Update submodule pointer
+        env:
+          SERVICE: ${{ github.event.client_payload.service }}
+          SHA: ${{ github.event.client_payload.sha }}
+        run: |
+          echo "Updating ${SERVICE} to ${SHA}"
+          git submodule update --init "apps/${SERVICE}"
+          cd "apps/${SERVICE}"
+          # unshallow → full fetch so we get tree objects for the target SHA
+          git fetch --depth=1000 origin master
+          git checkout "${SHA}"
+          cd "${GITHUB_WORKSPACE}"
+          git add "apps/${SERVICE}"
+          git diff --cached --quiet && exit 0
+          git config user.name "monrepo-bot"
+          git config user.email "monrepo-bot@users.noreply.github.com"
+          git commit -m "chore: update ${SERVICE} to ${SHA:0:12}"
+          git push

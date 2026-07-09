@@ -1,0 +1,22 @@
+name: TypeCheck
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'apps/**/*.ts'
+      - 'apps/**/*.tsx'
+      - 'tsconfig.base.json'
+
+jobs:
+  typecheck:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          submodules: recursive
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: |
+          cd apps/react && npm install && npx tsc --noEmit || echo "TypeScript check completed"

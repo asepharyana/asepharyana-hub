@@ -1,0 +1,331 @@
+name: Build and Push Docker Images
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'apps/**'
+      - 'packages/**'
+      - '.github/workflows/docker-build-push.yml'
+      - 'infra/**'
+      - '!infra/compose/**'
+  repository_dispatch:
+    types: [submodule-updated]
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME_PREFIX: asepharyana/asepharyana-hub
+
+jobs:
+  # ──────────────────────────────────────────────
+  # Phase 1: Detect which services have changed
+  # ──────────────────────────────────────────────
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.set-matrix.outputs.matrix }}
+      scraper-api: ${{ steps.filter.outputs['scraper-api'] == 'true' || steps.dispatch.outputs['scraper-api'] == 'true' || github.event_name == 'workflow_dispatch' }}
+      elysia-api: ${{ steps.filter.outputs['elysia-api'] == 'true' || steps.dispatch.outputs['elysia-api'] == 'true' || github.event_name == 'workflow_dispatch' }}
+      react-web: ${{ steps.filter.outputs['react-web'] == 'true' || steps.dispatch.outputs['react-web'] == 'true' || github.event_name == 'workflow_dispatch' }}
+      rust-auth: ${{ steps.filter.outputs['rust-auth'] == 'true' || steps.dispatch.outputs['rust-auth'] == 'true' || github.event_name == 'workflow_dispatch' }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          submodules: false
+          fetch-depth: 2
+
+      - name: Detect changed services
+        id: filter
+        if: github.event_name == 'push'
+        env:
+          BEFORE: ${{ github.event.before }}
+          AFTER: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          if [ -z "${BEFORE:-}" ] || [[ "$BEFORE" =~ ^0+$ ]]; then
+            CHANGED_FILES=$(git ls-files)
+          else
+            git fetch --no-tags --depth=2 origin "$BEFORE" || true
+            CHANGED_FILES=$(git diff --name-only "$BEFORE" "$AFTER")
+          fi
+
+          changed() {
+            printf '%s\n' "$CHANGED_FILES" | grep -Eq "$1" && echo true || echo false
+          }
+
+          echo "scraper-api=$(changed '^(apps/scraper(/|$)|\.github/workflows/docker-build-push\.yml$|infra/docker/scraper\.Dockerfile$)')" >> "$GITHUB_OUTPUT"
+          echo "elysia-api=$(changed '^(apps/elysia(/|$)|packages(/|$)|\.github/workflows/docker-build-push\.yml$|infra/docker/elysia\.Dockerfile$)')" >> "$GITHUB_OUTPUT"
+          echo "react-web=$(changed '^(apps/react(/|$)|\.github/workflows/docker-build-push\.yml$|infra/docker/react\.Dockerfile$)')" >> "$GITHUB_OUTPUT"
+          echo "rust-auth=$(changed '^(apps/rust-auth(/|$)|infra/docker/rust\.Dockerfile$|\.github/workflows/docker-build-push\.yml$|\.gitmodules$)')" >> "$GITHUB_OUTPUT"
+
+      - name: Parse repository_dispatch payload
+        id: dispatch
+        if: github.event_name == 'repository_dispatch'
+        env:
+          SERVICE: ${{ github.event.client_payload.service }}
+          SHA: ${{ github.event.client_payload.sha }}
+        run: |
+          set -euo pipefail
+
+          if [ -z "${SERVICE:-}" ]; then
+            echo "::error::repository_dispatch payload missing service"
+            exit 1
+          fi
+
+          if [ -z "${SHA:-}" ]; then
+            echo "::error::repository_dispatch payload missing sha"
+            exit 1
+          fi
+
+          case "$SERVICE" in
+            scraper-api|elysia-api|react-web|rust-auth) ;;
+            *)
+              exit 1
+              ;;
+          esac
+
+          if ! [[ "$SHA" =~ ^[0-9a-fA-F]{40}$ ]]; then echo "::error::Invalid sha '$SHA'. Expected 40 hex characters"; exit 1; fi
+
+          SERVICES=(scraper-api elysia-api react-web rust-auth)
+          for svc in "${SERVICES[@]}"; do
+            if [ "$SERVICE" = "$svc" ]; then
+              echo "${svc}=true" >> "$GITHUB_OUTPUT"
+            else
+              echo "${svc}=false" >> "$GITHUB_OUTPUT"
+            fi
+          done
+
+      - name: Set matrix
+        id: set-matrix
+        run: |
+          SERVICES=()
+          add_service() {
+            SERVICES+=("{\"id\":\"$1\",\"target\":\"$2\",\"path\":\"$3\"}")
+          }
+
+          if [ "${{ steps.filter.outputs['scraper-api'] == 'true' || steps.dispatch.outputs['scraper-api'] == 'true' || github.event_name == 'workflow_dispatch' }}" == "true" ]; then add_service "scraper-api" "docker-scraper" "apps/scraper"; fi
+          if [ "${{ steps.filter.outputs['elysia-api'] == 'true' || steps.dispatch.outputs['elysia-api'] == 'true' || github.event_name == 'workflow_dispatch' }}" == "true" ]; then add_service "elysia-api" "docker-elysia" "apps/elysia"; fi
+          if [ "${{ steps.filter.outputs['react-web'] == 'true' || steps.dispatch.outputs['react-web'] == 'true' || github.event_name == 'workflow_dispatch' }}" == "true" ]; then add_service "react-web" "docker-react" "apps/react"; fi
+          if [ "${{ steps.filter.outputs['rust-auth'] == 'true' || steps.dispatch.outputs['rust-auth'] == 'true' || github.event_name == 'workflow_dispatch' }}" == "true" ]; then add_service "rust-auth" "docker-rust-auth" "apps/rust-auth"; fi
+
+          JSON_ARRAY="[$(IFS=,; echo "${SERVICES[*]}")]"
+          echo "matrix=$JSON_ARRAY" >> $GITHUB_OUTPUT
+
+  wait-submodule-ref:
+    needs: [changes]
+    if: github.event_name == 'repository_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Wait for submodule ref
+        env:
+          SERVICE: ${{ github.event.client_payload.service }}
+          SHA: ${{ github.event.client_payload.sha }}
+        run: |
+          set -euo pipefail
+
+          case "$SERVICE" in
+            "scraper-api") REPO="https://github.com/asepharyana/asepharyana-hub-scraper.git" ;;
+            "elysia-api") REPO="https://github.com/asepharyana/asepharyana-hub-elysia.git" ;;
+            "react-web") REPO="https://github.com/asepharyana/asepharyana-hub-react.git" ;;
+            "rust-auth") REPO="https://github.com/asepharyana/asepharyana-hub-rust-auth.git" ;;
+            *)
+              echo "::error::Unsupported service '$SERVICE'"
+              exit 1
+              ;;
+          esac
+
+          echo "Waiting for $SERVICE commit $SHA in $REPO"
+          TMPDIR=$(mktemp -d)
+          git init "$TMPDIR/probe" >/dev/null
+          git -C "$TMPDIR/probe" remote add origin "$REPO"
+          for attempt in {1..30}; do
+            if git -C "$TMPDIR/probe" fetch --depth=1 origin "$SHA" >/dev/null 2>&1; then
+              echo "Submodule commit $SHA is fetchable for $SERVICE"
+              rm -rf "$TMPDIR"
+              exit 0
+            fi
+            echo "Attempt $attempt/30: $SHA not fetchable yet; waiting 10s"
+            sleep 10
+          done
+          rm -rf "$TMPDIR"
+
+          echo "::error::Submodule commit $SHA for $SERVICE was not fetchable after 300s"
+          exit 1
+
+  # ─────────────────────────────────────────────────
+  # Phase 2: Build and Push Images (Matrix)
+  # ─────────────────────────────────────────────────
+  build:
+    needs: [changes, wait-submodule-ref]
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include: ${{ fromJson(needs.changes.outputs.matrix) }}
+    if: |
+      always() &&
+      needs.changes.result == 'success' &&
+      (needs.wait-submodule-ref.result == 'success' || needs.wait-submodule-ref.result == 'skipped') &&
+      needs.changes.outputs.matrix != '[]'
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          submodules: false
+
+      - name: Sync submodule locally
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          DISPATCH_SHA: ${{ github.event.client_payload.sha }}
+          SUBMODULE_PATH: ${{ matrix.path }}
+        run: |
+          set -euo pipefail
+          git submodule update --init --recursive "$SUBMODULE_PATH"
+          if [ "$EVENT_NAME" = "repository_dispatch" ] && [ -n "${DISPATCH_SHA:-}" ]; then
+            cd "$SUBMODULE_PATH"
+            git fetch origin "$DISPATCH_SHA"
+            git checkout "$DISPATCH_SHA"
+          fi
+
+      - uses: docker/login-action@v4
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Docker metadata
+        id: meta
+        run: |
+          SVC_NAME="${{ matrix.id }}"
+          SHORT=${GITHUB_SHA:0:7}
+          echo "image=${REGISTRY}/${IMAGE_NAME_PREFIX}/${SVC_NAME}" >> $GITHUB_OUTPUT
+          echo "tags=${REGISTRY}/${IMAGE_NAME_PREFIX}/${SVC_NAME}:latest,${REGISTRY}/${IMAGE_NAME_PREFIX}/${SVC_NAME}:sha-${SHORT}" >> $GITHUB_OUTPUT
+          echo "cache-registry=${REGISTRY}/${IMAGE_NAME_PREFIX}/${SVC_NAME}:buildcache" >> $GITHUB_OUTPUT
+          case "$SVC_NAME" in
+            "scraper-api")    echo "dockerfile=infra/docker/scraper.Dockerfile" >> $GITHUB_OUTPUT ;;
+            "elysia-api")  echo "dockerfile=infra/docker/elysia.Dockerfile" >> $GITHUB_OUTPUT ;;
+            "react-web")  echo "dockerfile=infra/docker/react.Dockerfile" >> $GITHUB_OUTPUT ;;
+            "rust-auth") echo "dockerfile=infra/docker/rust.Dockerfile" >> $GITHUB_OUTPUT ;;
+          esac
+
+      - name: Build and Push Docker image
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: ${{ steps.meta.outputs.dockerfile }}
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          build-args: |
+            COMMIT_COUNT=${{ env.NR_COMMIT_COUNT || github.run_number }}
+            COMMIT_SHA=${{ env.NR_COMMIT_SHA || github.sha }}
+          cache-from: type=registry,ref=${{ steps.meta.outputs['cache-registry'] }}
+          cache-to: type=registry,ref=${{ steps.meta.outputs['cache-registry'] }},mode=max
+
+  # ──────────────────────────────────────────────
+  # Phase 3: Update Manifests and Submodule Refs
+  # ──────────────────────────────────────────────
+  update-manifest:
+    needs: [changes, wait-submodule-ref, build]
+    if: |
+      always() &&
+      needs.changes.result == 'success' &&
+      (needs.wait-submodule-ref.result == 'success' || needs.wait-submodule-ref.result == 'skipped') &&
+      (needs.build.result == 'success' || needs.build.result == 'skipped')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          submodules: false
+          token: ${{ secrets.GITHUB_TOKEN }}
+          ref: main
+
+      - name: Update tags and submodules
+        run: |
+          SHORT_SHA=${GITHUB_SHA:0:7}
+          TAG="sha-$SHORT_SHA"
+          CHANGED=false
+
+          declare -A SERVICES
+          SERVICES["scraper-api"]="scraper.yml"
+          SERVICES["elysia-api"]="elysia.yml"
+          SERVICES["react-web"]="react.yml"
+          SERVICES["rust-auth"]="rust-auth.yml"
+
+          declare -A PATHS
+          PATHS["scraper-api"]="apps/scraper"
+          PATHS["elysia-api"]="apps/elysia"
+          PATHS["react-web"]="apps/react"
+          PATHS["rust-auth"]="apps/rust-auth"
+
+          # Use git config for possible commits
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+
+          for id in "${!SERVICES[@]}"; do
+            SHOULD_HAVE_RUN=false
+            if [ "${{ needs.changes.outputs['scraper-api'] }}" == "true" ] && [ "$id" == "scraper-api" ]; then SHOULD_HAVE_RUN=true; fi
+            if [ "${{ needs.changes.outputs['elysia-api'] }}" == "true" ] && [ "$id" == "elysia-api" ]; then SHOULD_HAVE_RUN=true; fi
+            if [ "${{ needs.changes.outputs['react-web'] }}" == "true" ] && [ "$id" == "react-web" ]; then SHOULD_HAVE_RUN=true; fi
+            if [ "${{ needs.changes.outputs['rust-auth'] }}" == "true" ] && [ "$id" == "rust-auth" ]; then SHOULD_HAVE_RUN=true; fi
+
+            if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then SHOULD_HAVE_RUN=true; fi
+
+            if [ "$SHOULD_HAVE_RUN" == "true" ]; then
+              COMPOSE_FILE="infra/compose/${SERVICES[$id]}"
+              if [ -f "$COMPOSE_FILE" ]; then
+                echo "Updating $COMPOSE_FILE to $TAG"
+                sed -i "s|image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_PREFIX }}/$id:.*|image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_PREFIX }}/$id:$TAG|g" "$COMPOSE_FILE"
+                git add "$COMPOSE_FILE"
+                CHANGED=true
+              fi
+
+              # If it's a repository_dispatch for this specific service, update its submodule pointer
+              if [ "${{ github.event_name }}" == "repository_dispatch" ] && [ "${{ github.event.client_payload.service }}" == "$id" ]; then
+                SHA_DISPATCH="${{ github.event.client_payload.sha }}"
+                SUB_PATH="${PATHS[$id]}"
+                if [ -n "$SHA_DISPATCH" ]; then
+                  echo "Updating submodule $SUB_PATH to $SHA_DISPATCH"
+                  git submodule update --init "$SUB_PATH"
+                  git -C "$SUB_PATH" fetch origin "$SHA_DISPATCH"
+                  git -C "$SUB_PATH" checkout "$SHA_DISPATCH"
+                  git add "$SUB_PATH"
+                  CHANGED=true
+                fi
+              fi
+            fi
+          done
+
+          if [ "$CHANGED" == "true" ]; then
+            git commit -m "chore: update manifests and submodules [skip ci]"
+
+            for attempt in {1..3}; do
+              if git pull --rebase origin main && git push origin main; then
+                exit 0
+              fi
+              echo "Manifest push attempt $attempt/3 failed; retrying"
+              git rebase --abort || true
+              git pull --rebase origin main || true
+              sleep 5
+            done
+
+            echo "::error::Failed to push manifest update after 3 attempts"
+            exit 1
+          else
+            echo "No changes detected."
+          fi

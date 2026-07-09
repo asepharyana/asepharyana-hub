@@ -1,0 +1,67 @@
+apps/gmw/
+# See https://docs.github.com/en/get-started/getting-started-with-git/ignoring-files for more about ignoring files.
+
+# compiled output
+dist
+tmp
+out-tsc
+error.log
+# dependencies
+node_modules
+.bun/**
+.turbo/
+# IDEs and editors
+/.idea
+.project
+.classpath
+.c9/
+*.launch
+.settings/
+*.sublime-workspace
+**/target/**
+# IDE - VSCode
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+
+# misc
+/.sass-cache
+/connect.lock
+/coverage
+/libpeerconnection.log
+npm-debug.log
+yarn-error.log
+testem.log
+/typings
+
+# System Files
+.DS_Store
+Thumbs.db
+.claude
+# Next.js
+.next
+out
+**/.codegraph/**
+**/.claude/**
+test-output
+**/**.env
+**/**.env.**
+vite.config.*.timestamp*
+vitest.config.*.timestamp*
+
+
+storybook-static
+~/.bun/**
+docs/dependency-map.md
+docs/handoff-log.jsonl
+docs/observability.md
+docs/quality-gates.json
+docs/workflow-state.json
+docs/todo.md
+**/vendor/
+
+# moonrepo
+.moon/cache
+.~moon**

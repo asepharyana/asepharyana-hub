@@ -1,0 +1,21 @@
+services:
+  redis:
+    container_name: redis
+    image: 'redis:alpine'
+    restart: always
+    networks:
+      app-shared-net:
+        aliases:
+          - redis
+    ports:
+      - '${SHARED_REDIS_EXPOSE:-127.0.0.1:6379:6379}'
+    volumes:
+      - 'redis_data:/data'
+
+networks:
+  app-shared-net:
+    name: app-shared-net
+    external: true
+
+volumes:
+  redis_data: null

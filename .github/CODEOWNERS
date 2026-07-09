@@ -1,0 +1,11 @@
+# Default owners
+* @MythEclipse
+
+# Infrastructure
+/infra/ @MythEclipse
+
+# GitHub config
+/.github/ @MythEclipse
+
+# Docs
+/docs/ @MythEclipse

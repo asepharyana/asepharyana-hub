@@ -1,0 +1,39 @@
+# Squid Proxy Configuration (Archived)
+
+**Status**: Archived; not referenced by active infrastructure.
+
+**Date archived**: 2026-06-04
+
+**Original location**: `infra/squid.conf`
+
+**Reason**: No active Docker Compose service mounts or starts Squid. The config is preserved here for reference if Squid proxying is restored later.
+
+## Original configuration
+
+```squid
+# Allow localhost access only
+acl localhost src 127.0.0.1/32 ::1/128
+http_access allow localhost
+
+# Allow Docker bridge subnets (Adjusted for our expected subnets)
+acl docker_bridge src 172.16.0.0/12
+http_access allow docker_bridge
+
+# Deny all other access
+http_access deny all
+
+# Standard port - Explicitly bind to all interfaces
+http_port 0.0.0.0:3128
+
+# Hide source info
+forwarded_for off
+via off
+```
+
+## Restore checklist
+
+1. Copy this config back to `infra/squid.conf`.
+2. Add a Squid service to an active compose file.
+3. Mount the config into the Squid container.
+4. Document which services should use the proxy.
+5. Validate network exposure and authentication before production use.

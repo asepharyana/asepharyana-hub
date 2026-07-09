@@ -1,0 +1,57 @@
+http:
+  routers:
+    # ── React SPA (domain root) ──
+    react:
+      rule: 'Host(`asepharyana.my.id`) || Host(`asepharyana.web.id`)'
+      entryPoints:
+        - websecure
+      tls: {}
+      service: react-service
+
+    # ── Scraper API ──
+    scraper:
+      rule: 'Host(`scraper.asepharyana.my.id`) || Host(`api.asepharyana.my.id`) || Host(`scraper.asepharyana.web.id`) || Host(`api.asepharyana.web.id`)'
+      entryPoints:
+        - websecure
+      tls: {}
+      middlewares:
+        - common-chain@file
+      service: scraper-service
+
+    # ── Elysia API ──
+    elysia:
+      rule: 'Host(`elysia.asepharyana.my.id`) || Host(`elysia.asepharyana.web.id`)'
+      entryPoints:
+        - websecure
+      tls: {}
+      middlewares:
+        - common-chain@file
+      service: elysia-service
+
+    # ── Rust Auth API ──
+    rust-auth:
+      rule: 'Host(`auth.asepharyana.my.id`) || Host(`auth.asepharyana.web.id`)'
+      entryPoints:
+        - websecure
+      tls: {}
+      middlewares:
+        - common-chain@file
+      service: rust-auth-service
+
+  services:
+    react-service:
+      loadBalancer:
+        servers:
+          - url: 'http://react-web:80'
+    scraper-service:
+      loadBalancer:
+        servers:
+          - url: 'http://scraper-api:4091'
+    elysia-service:
+      loadBalancer:
+        servers:
+          - url: 'http://elysia-api:4092'
+    rust-auth-service:
+      loadBalancer:
+        servers:
+          - url: 'http://rust-auth:3000'

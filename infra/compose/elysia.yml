@@ -1,0 +1,24 @@
+services:
+  elysia-api:
+    container_name: elysia-api
+    image: ghcr.io/asepharyana/asepharyana-hub/elysia-api:sha-0899edc
+    restart: always
+    networks:
+      app-shared-net:
+        aliases:
+          - elysia-api
+    env_file:
+      - ../../.env
+    environment:
+      - REDIS_URL=redis://redis:6379
+      - JWT_SECRET=${JWT_SECRET:?JWT_SECRET is required}
+      - DATABASE_URL=${DATABASE_URL}
+      - GITHUB_TOKEN=${GITHUB_TOKEN}
+      - PORT=4092
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://otlp-metrics-backend:4317
+      - OTEL_SERVICE_NAME=elysia-api
+
+networks:
+  app-shared-net:
+    name: app-shared-net
+    external: true

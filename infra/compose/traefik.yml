@@ -1,0 +1,74 @@
+services:
+  traefik:
+    container_name: traefik
+    image: traefik:v3.6
+    restart: always
+    sysctls:
+      - net.core.somaxconn=65535
+      - net.ipv4.ip_local_port_range=1024 65535
+    ulimits:
+      nofile:
+        soft: 1048576
+        hard: 1048576
+    ports:
+      - '80:80'
+      - '443:443'
+    networks:
+      - app-shared-net
+    extra_hosts:
+      - 'host.docker.internal:10.0.1.1'
+    command:
+      - '--api.dashboard=true'
+      - '--api.insecure=false'
+      - '--providers.docker=true'
+      - '--providers.docker.endpoint=unix:///var/run/docker.sock'
+      - '--providers.docker.exposedByDefault=false'
+      - '--providers.docker.network=app-shared-net'
+      - '--providers.docker.watch=true'
+      - '--providers.file.directory=/etc/traefik/dynamic'
+      - '--providers.file.watch=true'
+      - '--entryPoints.web.address=:80'
+      - '--entryPoints.web.http.redirections.entryPoint.to=websecure'
+      - '--entryPoints.web.http.redirections.entryPoint.scheme=https'
+      - '--accesslog=true'
+      - '--accesslog.bufferingsize=100'
+      - '--log.level=INFO'
+      - '--log.format=json'
+      - '--entryPoints.web.transport.respondingTimeouts.readTimeout=0'
+      - '--entryPoints.web.transport.respondingTimeouts.writeTimeout=0'
+      - '--entryPoints.web.transport.respondingTimeouts.idleTimeout=0'
+      - '--entryPoints.web.transport.lifeCycle.requestAcceptGraceTimeout=15s'
+      - '--entryPoints.web.transport.lifeCycle.graceTimeOut=10s'
+      - '--entryPoints.websecure.transport.respondingTimeouts.readTimeout=0'
+      - '--entryPoints.websecure.transport.respondingTimeouts.writeTimeout=0'
+      - '--entryPoints.websecure.transport.respondingTimeouts.idleTimeout=0'
+      - '--entryPoints.websecure.transport.lifeCycle.requestAcceptGraceTimeout=15s'
+      - '--entryPoints.websecure.transport.lifeCycle.graceTimeOut=10s'
+      - '--entryPoints.websecure.address=:443'
+      - '--experimental.plugins.real-ip.moduleName=github.com/soulbalz/traefik-real-ip'
+      - '--experimental.plugins.real-ip.version=v1.0.3'
+      - '--experimental.plugins.blockpath.moduleName=github.com/traefik/plugin-blockpath'
+      - '--experimental.plugins.blockpath.version=v0.2.1'
+    environment:
+      - DOCKER_API_VERSION=1.41
+      - GOMEMLIMIT=4096MiB
+      - GOGC=200
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ${TRAEFIK_CONFIG_PATH:-/root/asepharyana-hub/infra/traefik/dynamic}:/etc/traefik/dynamic:ro
+      - ${TRAEFIK_CERT_ASEPHARYANA_MY_ID_PEM:-/root/asepharyana.my.id.pem}:/etc/traefik/certs/asepharyana.my.id.pem:ro
+      - ${TRAEFIK_CERT_ASEPHARYANA_MY_ID_KEY:-/root/asepharyana.my.id.key}:/etc/traefik/certs/asepharyana.my.id.key:ro
+      - ${TRAEFIK_CERT_ASEPHARYANA_WEB_ID_PEM:-/root/asepharyana.web.id.pem}:/etc/traefik/certs/asepharyana.web.id.pem:ro
+      - ${TRAEFIK_CERT_ASEPHARYANA_WEB_ID_KEY:-/root/asepharyana.web.id.key}:/etc/traefik/certs/asepharyana.web.id.key:ro
+    labels:
+      - 'traefik.enable=true'
+      - 'traefik.http.routers.traefik.rule=Host(`traefik.asepharyana.my.id`) || Host(`traefik.asepharyana.web.id`)'
+      - 'traefik.http.routers.traefik.service=api@internal'
+      - 'traefik.http.routers.traefik.entrypoints=websecure'
+      - 'traefik.http.routers.traefik.tls=true'
+      - 'traefik.http.routers.traefik.middlewares=admin-chain@file'
+
+networks:
+  app-shared-net:
+    name: app-shared-net
+    external: true

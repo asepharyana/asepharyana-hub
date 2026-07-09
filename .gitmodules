@@ -1,0 +1,12 @@
+[submodule "apps/elysia"]
+	path = apps/elysia
+	url = https://github.com/asepharyana/asepharyana-hub-elysia.git
+[submodule "apps/react"]
+	path = apps/react
+	url = https://github.com/asepharyana/asepharyana-hub-react.git
+[submodule "apps/scraper"]
+	path = apps/scraper
+	url = https://github.com/asepharyana/asepharyana-hub-scraper.git
+[submodule "apps/rust-auth"]
+	path = apps/rust-auth
+	url = https://github.com/asepharyana/asepharyana-hub-rust-auth.git

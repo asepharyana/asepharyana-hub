@@ -1,0 +1,9 @@
+node_modules
+dist
+*.tsbuildinfo
+.env*
+.claude/
+.codegraph/
+.code-review-graph/
+.superpowers/
+.remember/
