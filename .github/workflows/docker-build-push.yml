@@ -6,7 +6,6 @@ on:
       - main
     paths:
       - 'apps/**'
-      - 'packages/**'
       - '.github/workflows/docker-build-push.yml'
       - 'infra/**'
       - '!infra/compose/**'
@@ -31,6 +30,7 @@ jobs:
   # ──────────────────────────────────────────────
   changes:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     outputs:
       matrix: ${{ steps.set-matrix.outputs.matrix }}
       scraper-api: ${{ steps.filter.outputs['scraper-api'] == 'true' || steps.dispatch.outputs['scraper-api'] == 'true' || github.event_name == 'workflow_dispatch' }}
@@ -63,7 +63,7 @@ jobs:
           }
 
           echo "scraper-api=$(changed '^(apps/scraper(/|$)|\.github/workflows/docker-build-push\.yml$|infra/docker/scraper\.Dockerfile$)')" >> "$GITHUB_OUTPUT"
-          echo "elysia-api=$(changed '^(apps/elysia(/|$)|packages(/|$)|\.github/workflows/docker-build-push\.yml$|infra/docker/elysia\.Dockerfile$)')" >> "$GITHUB_OUTPUT"
+          echo "elysia-api=$(changed '^(apps/elysia(/|$)|\.github/workflows/docker-build-push\.yml$|infra/docker/elysia\.Dockerfile$)')" >> "$GITHUB_OUTPUT"
           echo "react-web=$(changed '^(apps/react(/|$)|\.github/workflows/docker-build-push\.yml$|infra/docker/react\.Dockerfile$)')" >> "$GITHUB_OUTPUT"
           echo "rust-auth=$(changed '^(apps/rust-auth(/|$)|infra/docker/rust\.Dockerfile$|\.github/workflows/docker-build-push\.yml$|\.gitmodules$)')" >> "$GITHUB_OUTPUT"
 
@@ -124,6 +124,7 @@ jobs:
     needs: [changes]
     if: github.event_name == 'repository_dispatch'
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - name: Wait for submodule ref
         env:
@@ -167,6 +168,7 @@ jobs:
   build:
     needs: [changes, wait-submodule-ref]
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
@@ -246,6 +248,7 @@ jobs:
       (needs.wait-submodule-ref.result == 'success' || needs.wait-submodule-ref.result == 'skipped') &&
       (needs.build.result == 'success' || needs.build.result == 'skipped')
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     permissions:
       contents: write
     steps:

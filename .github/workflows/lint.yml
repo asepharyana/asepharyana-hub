@@ -18,6 +18,7 @@ on:
 jobs:
   eslint:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v6
         with:
@@ -26,4 +27,4 @@ jobs:
         with:
           node-version: 22
       - run: npm install -g eslint @antfu/eslint-config
-      - run: eslint . --no-error-on-unmatched-pattern || echo "Lint check completed (best-effort)"
+      - run: eslint . --no-error-on-unmatched-pattern

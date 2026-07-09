@@ -4,19 +4,33 @@ on:
   pull_request:
     branches: [main]
     paths:
-      - 'apps/**/*.ts'
-      - 'apps/**/*.tsx'
+      - 'apps/react/src/**/*.ts'
+      - 'apps/react/src/**/*.tsx'
+      - 'apps/elysia/src/**/*.ts'
+      - 'apps/elysia/tsconfig.json'
       - 'tsconfig.base.json'
 
 jobs:
   typecheck:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v6
         with:
           submodules: recursive
-      - uses: actions/setup-node@v4
+
+      - uses: oven/setup-bun@v2
         with:
-          node-version: 22
-      - run: |
-          cd apps/react && npm install && npx tsc --noEmit || echo "TypeScript check completed"
+          bun-version: latest
+
+      - name: TypeCheck apps/react
+        working-directory: apps/react
+        run: |
+          bun install
+          npx tsc --noEmit
+
+      - name: TypeCheck apps/elysia
+        working-directory: apps/elysia
+        run: |
+          bun install
+          bun run check-types
