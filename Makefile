@@ -8,11 +8,11 @@ help: ## Show this help
 dev: ## Start development infrastructure (Redis etc.)
 	docker compose -f infra/compose/shared.yml up -d
 
-lint: ## Run ESLint across the repo
-	eslint . --no-error-on-unmatched-pattern
+lint: ## Run Biome linter
+	biome lint .
 
-format: ## Format code with Prettier
-	prettier --write "**/*.{ts,tsx,js,jsx,json,md,yaml,yml}"
+format: ## Format code with Biome
+	biome format --write .
 
 clean: ## Clean build artifacts
 	rm -rf apps/*/dist apps/*/.next apps/*/target 2>/dev/null || true

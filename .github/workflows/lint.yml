@@ -6,17 +6,16 @@ on:
     paths:
       - 'apps/*/src/**/*.ts'
       - 'apps/*/src/**/*.tsx'
-      - 'apps/*/eslint.config.mjs'
-      - 'eslint.config.mjs'
+      - 'biome.json'
   push:
     branches: [main]
     paths:
       - 'apps/*/src/**/*.ts'
       - 'apps/*/src/**/*.tsx'
-      - 'eslint.config.mjs'
+      - 'biome.json'
 
 jobs:
-  eslint:
+  biome:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -26,5 +25,5 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - run: npm install -g eslint @antfu/eslint-config
-      - run: eslint . --no-error-on-unmatched-pattern
+      - run: npm install -g @biomejs/biome
+      - run: biome ci . --no-errors-on-unmatched
