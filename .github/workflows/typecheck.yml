@@ -33,4 +33,4 @@ jobs:
         working-directory: apps/elysia
         run: |
           bun install
-          bun run check-types
+          bun run typecheck
