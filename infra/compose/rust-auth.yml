@@ -1,7 +1,7 @@
 services:
   rust-auth:
     container_name: rust-auth-api
-    image: ghcr.io/asepharyana/asepharyana-hub/rust-auth:sha-0899edc
+    image: ghcr.io/asepharyana/asepharyana-hub/rust-auth:sha-b199f8c
     restart: always
     networks:
       app-shared-net:

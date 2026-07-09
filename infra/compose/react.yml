@@ -1,7 +1,7 @@
 services:
   react-web:
     container_name: react-web
-    image: ghcr.io/asepharyana/asepharyana-hub/react-web:sha-0899edc
+    image: ghcr.io/asepharyana/asepharyana-hub/react-web:sha-b199f8c
     restart: always
     networks: [app-shared-net]
     environment:
