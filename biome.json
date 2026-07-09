@@ -5,19 +5,29 @@
     "enabled": true,
     "rules": {
       "preset": "recommended",
+      "a11y": {
+        "useButtonType": "warn",
+        "useIframeTitle": "warn",
+        "noSvgWithoutTitle": "warn",
+        "useAltText": "warn"
+      },
+      "complexity": {
+        "noForEach": "off",
+        "noStaticOnlyClass": "off",
+        "noThisInStatic": "off",
+        "useOptionalChain": "off"
+      },
       "suspicious": {
+        "noArrayIndexKey": "warn",
         "noConsole": "off",
         "noExplicitAny": "warn"
       },
       "correctness": {
-        "noUnusedVariables": "error"
+        "noUnusedVariables": "error",
+        "useParseIntRadix": "off"
       },
       "style": {
         "noNonNullAssertion": "off"
-      },
-      "complexity": {
-        "noForEach": "off",
-        "noThisInStatic": "off"
       }
     }
   },
@@ -37,6 +47,11 @@
       "trailingCommas": "all",
       "semicolons": "always",
       "arrowParentheses": "always"
+    }
+  },
+  "css": {
+    "parser": {
+      "tailwindDirectives": true
     }
   },
   "files": {
