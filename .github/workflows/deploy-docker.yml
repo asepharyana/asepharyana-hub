@@ -29,7 +29,12 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     timeout-minutes: 30
-    if: github.event_name == 'workflow_dispatch' || github.event_name == 'push' || github.event.workflow_run.conclusion == 'success'
+    if: >
+      (github.event_name == 'workflow_dispatch' || github.event_name == 'push' || github.event.workflow_run.conclusion == 'success')
+      && secrets.SSH_PRIVATE_KEY != ''
+      && secrets.VPS_HOST != ''
+      && secrets.VPS_USER != ''
+      && secrets.VPS_TARGET_DIR != ''
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
