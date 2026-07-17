@@ -38,6 +38,16 @@ http:
         - common-chain@file
       service: rust-auth-service
 
+    # ── PR-Agent Webhook ──
+    pr-agent:
+      rule: 'Host(`pr-agent.asepharyana.my.id`) || Host(`pr-agent.asepharyana.web.id`)'
+      entryPoints:
+        - websecure
+      tls: {}
+      middlewares:
+        - common-chain@file
+      service: pr-agent-service
+
   services:
     react-service:
       loadBalancer:
@@ -55,3 +65,7 @@ http:
       loadBalancer:
         servers:
           - url: 'http://rust-auth:3000'
+    pr-agent-service:
+      loadBalancer:
+        servers:
+          - url: 'http://pr-agent-server:3000'
