@@ -2,8 +2,8 @@
   "skills": [
     {
       "name": "clean-code",
-      "filePattern": ".claude/skills/clean-code.md",
-      "description": "Clean Code, SOLID, dan Clean Architecture principles untuk proyek ini"
+      "filePattern": ".claude/skills/clean-code/SKILL.md",
+      "description": "Clean Code, Clean Architecture, SOLID, TDD — dari kana-best-practice-engineering"
     },
     {
       "name": "hub-rules",
