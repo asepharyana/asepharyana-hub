@@ -16,7 +16,6 @@
 - **Git** with LFS support
 - **Node.js** >= 22.11.0 (via `.node-version` or `.nvmrc`)
 - **Bun** >= 1.3.11 (package manager)
-- **Rust** >= 1.89.0 (for Rust services)
 - **Docker** and **Docker Compose** (for shared infrastructure)
 
 ## Local Setup
@@ -40,18 +39,14 @@ This checks out all submodules at the pinned commit (not `main`). The submodules
 
 | Path             | Remote                                  |
 | ---------------- | --------------------------------------- |
-| `apps/elysia`    | `asepharyana/asepharyana-hub-elysia`    |
 | `apps/scraper`   | `asepharyana/asepharyana-hub-scraper`   |
-| `apps/react`     | `asepharyana/asepharyana-hub-react`     |
-| `apps/rust-auth` | `asepharyana/asepharyana-hub-rust-auth` |
 
 ### 3. Install Dependencies per Service
 
 Install dependencies for TypeScript/Bun services:
 
 ```bash
-cd apps/elysia && bun install && cd ../..
-cd apps/react && npm install && cd ../..
+cd apps/scraper && bun install && cd ../..
 ```
 
 ### 4. Start Shared Infrastructure
@@ -75,76 +70,42 @@ Key variables to configure:
 | Variable       | Description                                           |
 | -------------- | ----------------------------------------------------- |
 | `DATABASE_URL` | PostgreSQL connection (Tailscale IP to `imrnes` VPS)  |
-| `REDIS_URL`    | Redis connection (`redis://localhost:6379` for local) |
-| `JWT_SECRET`   | JWT signing secret                                    |
 | `GITHUB_TOKEN` | GitHub personal access token                          |
 
 ## Development Workflow
 
 ### Running Services
 
-**Rust API (rust-auth):**
-
-```bash
-cd apps/rust-auth
-cargo run
-```
-
-**Elysia API (elysia):**
-
-```bash
-cd apps/elysia
-bun run dev
-```
-
-**React Frontend (react):**
-
-```bash
-cd apps/react
-npm run dev
-```
+Refer to each service's own documentation for setup and development instructions.
 
 ### API Documentation
 
-- Rust OpenAPI: `http://localhost:4091/docs`
-- Elysia Swagger: `http://localhost:4092/docs`
-- Elysia AsyncAPI: `http://localhost:4092/docs-ws`
+Refer to each service's own documentation for API docs and endpoints.
 
 ## Coding Standards
 
 ### Linting
 
-- **ESLint** with `@antfu/eslint-config` for TypeScript/JavaScript
-- **Cargo Clippy** for Rust
+- **Biome** for TypeScript/JavaScript formatting and linting
 
 Run linting:
 
 ```bash
 # TypeScript/JavaScript
-eslint . --no-error-on-unmatched-pattern
-
-# Rust specific
-cd apps/rust-auth && cargo clippy -- -D warnings
+bun run check
 ```
 
 ### Formatting
 
-- **Prettier** for TypeScript/JavaScript/Markdown (config in `.prettierrc`)
-  - Single quotes, 100 print width, 2-space indent, trailing commas
-- **Cargo fmt** for Rust
+- **Biome** for TypeScript/JavaScript
 - **EditorConfig** for general formatting (`.editorconfig`)
 
 ```bash
-# Prettier
-prettier --write .
-
-# Rust
-cd apps/rust-auth && cargo fmt
+# Format all
+bun run format
 ```
 
-### Rust Configuration
 
-Rust services use edition `2024` with stable toolchain (nightly features may be used).
 
 ## Commit Message Format
 
@@ -177,18 +138,15 @@ This project enforces **Conventional Commits** for all commit messages.
 ### Examples
 
 ```
-feat(rust-auth): add OAuth2 Google login flow
-fix(elysia): handle null JWT payload in auth middleware
-chore: update eslint config to v10
+feat(scraper): add new data source integration
+chore: update biome config to v10
 docs: add API endpoint documentation for scraper
-refactor(react): extract Header component from App
-test(elysia): add unit tests for rate limiter
 ci: migrate to CodeQL v3
 ```
 
 ### Scopes
 
-Common scopes: `rust-auth`, `elysia`, `react`, `scraper`, `infra`, `ci`, `deps`
+Common scopes: `scraper`, `infra`, `ci`, `deps`
 
 ## Pull Request Process
 
@@ -201,10 +159,9 @@ Common scopes: `rust-auth`, `elysia`, `react`, `scraper`, `infra`, `ci`, `deps`
 
 3. **Run checks locally** before pushing:
 
-   ```bash
-   cd apps/react && npx tsc --noEmit
-   eslint . --no-error-on-unmatched-pattern
-   ```
+    ```bash
+    bun run check
+    ```
 
 4. **Push and open a PR** against `main`. CI will automatically run:
    - **Lint** — ESLint across changed TypeScript files
@@ -227,13 +184,4 @@ Common scopes: `rust-auth`, `elysia`, `react`, `scraper`, `infra`, `ci`, `deps`
 
 ## Adding a New Service
 
-See `docs/add-new-app.md` for the complete step-by-step guide. In summary:
-
-1. Create the app in `apps/<name>`
-2. Add it as a Git submodule in `.gitmodules`
-3. Register it in `infra/compose/<name>.yml`
-4. Add a Dockerfile at `infra/docker/<name>.Dockerfile`
-5. Add Traefik routing config in `infra/traefik/dynamic/apps.yaml`
-6. Add CI entries in `.github/workflows/docker-build-push.yml`
-7. Add compose file to the deploy script in `deploy-docker.yml`
-8. Add any required GitHub secrets for the service
+See `docs/add-new-app.md` for the complete step-by-step guide.

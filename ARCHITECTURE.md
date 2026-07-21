@@ -100,21 +100,10 @@ graph TB
 
     subgraph "orange Containers"
         TRAEFIK[Traefik :443]
-        RUST_AUTH[rust-auth :3000]
-        ELYSIA[elysia-api :4092]
-        REACT[react-web :80]
         SCRAPER[scraper-api :4091]
     end
 
-    TRAEFIK --> RUST_AUTH
-    TRAEFIK --> ELYSIA
-    TRAEFIK --> REACT
     TRAEFIK --> SCRAPER
-
-    RUST_AUTH -.->|Tailscale IP| PG
-    ELYSIA -.->|Tailscale IP| PG
-    RUST_AUTH -.->|Tailscale IP| REDIS
-    ELYSIA -.->|Tailscale IP| REDIS
 
     style IMRNES fill:#3a7,color:#fff
     style ORANGE fill:#37a,color:#fff
@@ -154,8 +143,8 @@ sequenceDiagram
         App->>DB: sqlx/Drizzle query via Tailscale
         DB-->>App: Result set
     else Cache lookup
-        App->>Redis: GET/SET via Tailscale
-        Redis-->>App: Cached value
+        App->>Cache: GET/SET via Tailscale
+        Cache-->>App: Cached value
     end
 
     App-->>Traefik: HTTP response
@@ -217,7 +206,7 @@ The `orange` VPS (Tailscale `100.96.248.86`) hosts all application containers:
 
 ### Selective Deployment
 
-The deploy workflow supports selective updates — if only `infra/compose/elysia.yml` changed, only `elysia-api` is pulled and recreated, avoiding disruption to other services.
+The deploy workflow supports selective updates — if only one compose file changed, only the corresponding service is pulled and recreated, avoiding disruption to other services.
 
 ```mermaid
 graph TB
@@ -254,7 +243,7 @@ Each application lives in its own Git repository and is imported as a submodule 
 
 ### Submodule Lifecycle
 
-1. Developer pushes to a submodule (e.g., `apps/elysia`)
+1. Developer pushes to a submodule (e.g., `apps/scraper`)
 2. Submodule's GitHub Action dispatches `repository_dispatch` to the super-repo with the service name and new SHA
 3. Super-repo detects the dispatch, waits for the SHA to be fetchable, then builds only that service
 4. The compose manifest is updated and committed with the new SHA tag
@@ -264,15 +253,12 @@ Each application lives in its own Git repository and is imported as a submodule 
 
 ```bash
 # Update a single submodule to latest
-cd apps/elysia
+cd apps/scraper
 git checkout main
 git pull
 cd ../..
-git add apps/elysia
-git commit -m "chore(elysia): update submodule to latest"
-
-# Update all submodules
-git submodule update --remote --merge
+git add apps/scraper
+git commit -m "chore(scraper): update submodule to latest"
 ```
 
 ## Service Mesh & Inter-Service Communication
@@ -287,35 +273,16 @@ graph LR
         TRAEFIK[Traefik :443]
 
         subgraph "app-shared-net"
-            REACT[react-web<br/>:80]
-            ELYSIA[elysia-api<br/>:4092]
-            RUST_AUTH[rust-auth<br/>:3000]
             SCRAPER[scraper-api<br/>:4091]
-            REDIS[redis<br/>:6379]
         end
     end
 
-    subgraph "Imrnes VPS"
-        PG[(PostgreSQL<br/>:5432)]
-        REDIS_IMR[Redis<br/>:6379]
-    end
-
     WWW -->|HTTPS| TRAEFIK
-    TRAEFIK --> REACT
-    TRAEFIK --> ELYSIA
-    TRAEFIK --> RUST_AUTH
     TRAEFIK --> SCRAPER
-
-    ELYSIA -->|Tailscale| PG
-    RUST_AUTH -->|Tailscale| PG
-    ELYSIA -->|internal| REDIS
-    RUST_AUTH -->|internal| REDIS
-    ELYSIA -->|Tailscale| REDIS_IMR
-    RUST_AUTH -->|Tailscale| REDIS_IMR
 ```
 
 ## Observability
 
-- **Prometheus metrics**: Available on rust-auth via `axum-prometheus`
+- **Traefik access logs**: JSON format, logged at INFO level
 - **Traefik access logs**: JSON format, logged at INFO level
 - **Dashboard**: Traefik dashboard at `traefik.asepharyana.my.id` (secured)

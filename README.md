@@ -5,12 +5,9 @@ Aplikasi dipisah sebagai submodule agar frontend, API, dan service pendukung bis
 
 ## Services
 
-| Service     | Path             | Default Local Port | Notes                                                                         |
-| :---------- | :--------------- | :----------------- | :---------------------------------------------------------------------------- |
-| Rust API    | `apps/rust-auth` | `4091`             | API utama (Axum + SeaORM), scraping, image proxy/cache, metrics, OpenAPI docs |
-| Elysia API  | `apps/elysia`    | `4092`             | API realtime/auth/chat/quiz (Elysia + Bun + Drizzle + Redis)                  |
-| React Web   | `apps/react`     | `3000`             | Frontend React/Vite                                                           |
-| Scraper     | `apps/scraper`   | —                  | Web scraper service                                                           |
+| Service | Path           | Notes               |
+| :------ | :------------- | :------------------ |
+| Scraper | `apps/scraper` | Web scraper service |
 
 ## Infrastructure
 
@@ -18,7 +15,7 @@ File compose berada di `infra/compose/`:
 
 - `traefik.yml`: reverse proxy Traefik untuk semua layanan.
 - `shared.yml`: Redis.
-- `rust-auth.yml`, `elysia.yml`, `react.yml`, `scraper.yml`: manifest deploy per service (image GHCR bertag SHA).
+- `scraper.yml`: manifest deploy per service (image GHCR bertag SHA).
 
 Dockerfile per service berada di `infra/docker/`.
 
@@ -27,9 +24,6 @@ Dockerfile per service berada di `infra/docker/`.
 Build image via Dockerfile:
 
 ```bash
-docker build -f infra/docker/rust.Dockerfile -t rust-auth:latest .
-docker build -f infra/docker/elysia.Dockerfile -t elysia-api:latest .
-docker build -f infra/docker/react.Dockerfile -t react-web:latest .
 docker build -f infra/docker/scraper.Dockerfile -t scraper-api:latest .
 ```
 
@@ -38,9 +32,8 @@ Tag and push:
 ```bash
 SHORT_SHA=$(git rev-parse --short HEAD)
 
-docker tag rust-auth:latest ghcr.io/asepharyana/asepharyana-hub/rust-auth:sha-$SHORT_SHA
-docker push ghcr.io/asepharyana/asepharyana-hub/rust-auth:sha-$SHORT_SHA
-# repeat for elysia-api, react-web, scraper-api
+docker tag scraper-api:latest ghcr.io/asepharyana/asepharyana-hub/scraper-api:sha-$SHORT_SHA
+docker push ghcr.io/asepharyana/asepharyana-hub/scraper-api:sha-$SHORT_SHA
 ```
 
 ## Local Development
@@ -53,27 +46,11 @@ docker compose -f infra/compose/shared.yml up -d
 
 ### 2) Jalankan service yang dibutuhkan
 
-```bash
-# Rust API
-cd apps/rust-auth
-cargo run
-
-# Elysia API
-cd apps/elysia
-bun install
-bun run dev
-
-# React web
-cd apps/react
-npm install
-npm run dev
-```
+Refer to each service's own documentation for development setup.
 
 ## API Docs and Monitoring
 
-- Rust OpenAPI: `/docs`
-- Elysia Swagger: `/docs`
-- Elysia AsyncAPI viewer: `/docs-ws`
+Refer to each service's own documentation for API docs.
 
 ## Deployment Notes
 

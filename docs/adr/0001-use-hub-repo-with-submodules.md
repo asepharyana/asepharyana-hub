@@ -22,12 +22,9 @@ Use `asepharyana-hub` as the root hub repository.
 
 Current app submodules:
 
-| Service        | Path             | Remote                                  |
-| -------------- | ---------------- | --------------------------------------- |
-| Elysia API     | `apps/elysia`    | `asepharyana/asepharyana-hub-elysia`    |
-| React frontend | `apps/react`     | `asepharyana/asepharyana-hub-react`     |
-| Rust auth API  | `apps/rust-auth` | `asepharyana/asepharyana-hub-rust-auth` |
-| Scraper API    | `apps/scraper`   | `asepharyana/asepharyana-hub-scraper`   |
+| Service     | Path           | Remote                                  |
+| ----------- | -------------- | --------------------------------------- |
+| Scraper API | `apps/scraper` | `asepharyana/asepharyana-hub-scraper`   |
 
 ## Consequences
 

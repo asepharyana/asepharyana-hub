@@ -21,10 +21,7 @@ Proyek ini sebelumnya bernama `ultimate-asepharyana.tech` — sebuah monorepo ya
 
 | Service | Path | Git remote baru |
 |---------|------|----------------|
-| Elysia API | `apps/elysia` | `asepharyana/asepharyana-hub-elysia` |
-| React Frontend | `apps/react` | `asepharyana/asepharyana-hub-react` |
 | Scraper | `apps/scraper` | `asepharyana/asepharyana-hub-scraper` |
-| Rust Auth | `apps/rust-auth` | `asepharyana/asepharyana-hub-rust-auth` |
 
 ## Service yang dihapus
 
@@ -32,8 +29,11 @@ Proyek ini sebelumnya bernama `ultimate-asepharyana.tech` — sebuah monorepo ya
 |---------|------|
 | Docker Manager | `apps/docker-manager/` |
 | TeleUploader | `apps/teleuploader/` |
+| Elysia API | `apps/elysia/` |
+| React Frontend | `apps/react/` |
+| Rust Auth | `apps/rust-auth/` |
 
-## File yang akan dihapus
+## File yang akan dihapus (gelombang 1)
 
 - `apps/docker-manager/` (seluruh direktori)
 - `apps/teleuploader/` (seluruh direktori)
@@ -68,10 +68,10 @@ Proyek ini sebelumnya bernama `ultimate-asepharyana.tech` — sebuah monorepo ya
 
 | Lama | Baru |
 |------|------|
-| `ghcr.io/mytheclipse/ultimate-asepharyana.tech/elysia-api:*` | `ghcr.io/asepharyana/asepharyana-hub/elysia-api:*` |
-| `ghcr.io/mytheclipse/ultimate-asepharyana.tech/react-web:*` | `ghcr.io/asepharyana/asepharyana-hub/react-web:*` |
 | `ghcr.io/mytheclipse/ultimate-asepharyana.tech/scraper-api:*` | `ghcr.io/asepharyana/asepharyana-hub/scraper-api:*` |
-| `ghcr.io/mytheclipse/ultimate-asepharyana.tech/rust-auth:*` | `ghcr.io/asepharyana/asepharyana-hub/rust-auth:*` |
+| `ghcr.io/mytheclipse/ultimate-asepharyana.tech/elysia-api:*` | — (dihapus) |
+| `ghcr.io/mytheclipse/ultimate-asepharyana.tech/react-web:*` | — (dihapus) |
+| `ghcr.io/mytheclipse/ultimate-asepharyana.tech/rust-auth:*` | — (dihapus) |
 | `ghcr.io/mytheclipse/ultimate-asepharyana.tech/docker-manager:*` | — (dihapus) |
 | `ghcr.io/mytheclipse/ultimate-asepharyana.tech/teleuploader:*` | — (dihapus) |
 
@@ -79,35 +79,25 @@ Proyek ini sebelumnya bernama `ultimate-asepharyana.tech` — sebuah monorepo ya
 
 ### `docker-build-push.yml`
 - `IMAGE_NAME_PREFIX`: `mytheclipse/ultimate-asepharyana.tech` → `asepharyana/asepharyana-hub`
-- Hapus service entries: `docker-manager`, `teleuploader`
+- Hapus service entries: `docker-manager`, `teleuploader`, `elysia-api`, `react-web`, `rust-auth`
 - Update repo URLs di `wait-submodule-ref` dari `MythEclipse/*` ke `asepharyana/*`
-- Update `update-manifest` phase — hapus service docker-manager & teleuploader
+- Update `update-manifest` phase — hapus service docker-manager, teleuploader, elysia-api, react-web, rust-auth
 
 ### `deploy-docker.yml`
 - Update `git remote add origin`
-- Hapus docker-manager & teleuploader dari compose list dan checkout
+- Hapus docker-manager, teleuploader, elysia-api, react-web, rust-auth dari compose list dan checkout
 
 ### `update-submodule.yml`
-- Hapus service docker-manager & teleuploader
-- Update nama workflow
+- Hapus service docker-manager, teleuploader, elysia-api, react-web, rust-auth
 
 ## `.gitmodules`
 
-Hanya berisi 4 apps dengan remote baru:
+Hanya berisi 1 app scraper:
 
 ```ini
-[submodule "apps/elysia"]
-	path = apps/elysia
-	url = https://github.com/asepharyana/asepharyana-hub-elysia.git
-[submodule "apps/react"]
-	path = apps/react
-	url = https://github.com/asepharyana/asepharyana-hub-react.git
 [submodule "apps/scraper"]
 	path = apps/scraper
 	url = https://github.com/asepharyana/asepharyana-hub-scraper.git
-[submodule "apps/rust-auth"]
-	path = apps/rust-auth
-	url = https://github.com/asepharyana/asepharyana-hub-rust-auth.git
 ```
 
 ## Execution plan
@@ -129,7 +119,7 @@ Hanya berisi 4 apps dengan remote baru:
 ## Post-execution state
 
 - Root direktori `asepharyana-hub/` dengan source code apps utuh (tanpa git)
-- 4 app submodule terdaftar di `.gitmodules` dengan remote baru
+- 1 app submodule (scraper) terdaftar di `.gitmodules` dengan remote baru
 - Infra/docs/scripts tetap menyatu di root
 - 0 references ke `MythEclipse/ultimate-asepharyana.tech` di file konfigurasi
 - Siap untuk `git init && git add && git commit` kapan saja
