@@ -5,9 +5,6 @@
 ```
 asepharyana-hub/
 ├── apps/                    # Application services (Git submodules)
-│   ├── elysia/             # Realtime API (Bun/Elysia/Drizzle/Redis)
-│   ├── react/              # Frontend SPA (React/Vite/TanStack)
-│   ├── rust-auth/          # IAM & auth service (Axum/SeaORM)
 │   └── scraper/            # Web scraper service
 ├── docs/                    # Documentation
 │   ├── adr/                # Architecture Decision Records
@@ -31,19 +28,11 @@ asepharyana-hub/
 
 ## Technology Stack
 
-### Backend Services
+### Services
 
-| Service       | Language/Runtime | Framework  | Database                 | Key Libraries                                                |
-| ------------- | ---------------- | ---------- | ------------------------ | ------------------------------------------------------------ |
-| **rust-auth** | Rust             | Axum 0.8   | PostgreSQL (sqlx)        | sqlx, jsonwebtoken, argon2, redis, opentelemetry, prometheus |
-| **elysia**    | TypeScript/Bun   | Elysia 1.4 | PostgreSQL (Drizzle ORM) | Drizzle ORM, Redis (ioredis), JWT (jose), OTel, Swagger      |
-| **scraper**   | _(submodule)_    | —          | —                        | —                                                            |
-
-### Frontend
-
-| Service   | Framework | Build Tool | Key Libraries                                                                                       |
-| --------- | --------- | ---------- | --------------------------------------------------------------------------------------------------- |
-| **react** | React 19  | Vite 7     | TanStack Router + Query, Three.js/React Three Fiber, Tailwind CSS 4, Zustand, Recharts, tsParticles |
+| Service   | Language/Runtime | Framework | Database | Key Libraries |
+| --------- | ---------------- | --------- | -------- | ------------- |
+| **scraper** | _(submodule)_  | —         | —        | —             |
 
 ### Infrastructure
 
@@ -90,7 +79,7 @@ Shared services:
 Service compose files are combined during deployment:
 
 ```bash
-docker compose -f traefik.yml -f shared.yml -f elysia.yml -f react.yml ... up -d
+docker compose -f traefik.yml -f shared.yml -f scraper.yml up -d
 ```
 
 ### Tailscale Networking

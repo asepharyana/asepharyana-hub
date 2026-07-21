@@ -5,7 +5,7 @@ on:
     branches:
       - main
     paths:
-      - 'apps/**'
+      - 'apps/scraper/**'
       - '.github/workflows/docker-build-push.yml'
       - 'infra/**'
       - '!infra/compose/**'
@@ -34,9 +34,6 @@ jobs:
     outputs:
       matrix: ${{ steps.set-matrix.outputs.matrix }}
       scraper-api: ${{ steps.filter.outputs['scraper-api'] == 'true' || steps.dispatch.outputs['scraper-api'] == 'true' || github.event_name == 'workflow_dispatch' }}
-      elysia-api: ${{ steps.filter.outputs['elysia-api'] == 'true' || steps.dispatch.outputs['elysia-api'] == 'true' || github.event_name == 'workflow_dispatch' }}
-      react-web: ${{ steps.filter.outputs['react-web'] == 'true' || steps.dispatch.outputs['react-web'] == 'true' || github.event_name == 'workflow_dispatch' }}
-      rust-auth: ${{ steps.filter.outputs['rust-auth'] == 'true' || steps.dispatch.outputs['rust-auth'] == 'true' || github.event_name == 'workflow_dispatch' }}
     steps:
       - uses: actions/checkout@v6
         with:
@@ -63,9 +60,6 @@ jobs:
           }
 
           echo "scraper-api=$(changed '^(apps/scraper(/|$)|\.github/workflows/docker-build-push\.yml$|infra/docker/scraper\.Dockerfile$)')" >> "$GITHUB_OUTPUT"
-          echo "elysia-api=$(changed '^(apps/elysia(/|$)|\.github/workflows/docker-build-push\.yml$|infra/docker/elysia\.Dockerfile$)')" >> "$GITHUB_OUTPUT"
-          echo "react-web=$(changed '^(apps/react(/|$)|\.github/workflows/docker-build-push\.yml$|infra/docker/react\.Dockerfile$)')" >> "$GITHUB_OUTPUT"
-          echo "rust-auth=$(changed '^(apps/rust-auth(/|$)|infra/docker/rust\.Dockerfile$|\.github/workflows/docker-build-push\.yml$|\.gitmodules$)')" >> "$GITHUB_OUTPUT"
 
       - name: Parse repository_dispatch payload
         id: dispatch
@@ -87,7 +81,7 @@ jobs:
           fi
 
           case "$SERVICE" in
-            scraper-api|elysia-api|react-web|rust-auth) ;;
+            scraper-api) ;;
             *)
               exit 1
               ;;
@@ -95,7 +89,7 @@ jobs:
 
           if ! [[ "$SHA" =~ ^[0-9a-fA-F]{40}$ ]]; then echo "::error::Invalid sha '$SHA'. Expected 40 hex characters"; exit 1; fi
 
-          SERVICES=(scraper-api elysia-api react-web rust-auth)
+          SERVICES=(scraper-api)
           for svc in "${SERVICES[@]}"; do
             if [ "$SERVICE" = "$svc" ]; then
               echo "${svc}=true" >> "$GITHUB_OUTPUT"
@@ -113,9 +107,6 @@ jobs:
           }
 
           if [ "${{ steps.filter.outputs['scraper-api'] == 'true' || steps.dispatch.outputs['scraper-api'] == 'true' || github.event_name == 'workflow_dispatch' }}" == "true" ]; then add_service "scraper-api" "docker-scraper" "apps/scraper"; fi
-          if [ "${{ steps.filter.outputs['elysia-api'] == 'true' || steps.dispatch.outputs['elysia-api'] == 'true' || github.event_name == 'workflow_dispatch' }}" == "true" ]; then add_service "elysia-api" "docker-elysia" "apps/elysia"; fi
-          if [ "${{ steps.filter.outputs['react-web'] == 'true' || steps.dispatch.outputs['react-web'] == 'true' || github.event_name == 'workflow_dispatch' }}" == "true" ]; then add_service "react-web" "docker-react" "apps/react"; fi
-          if [ "${{ steps.filter.outputs['rust-auth'] == 'true' || steps.dispatch.outputs['rust-auth'] == 'true' || github.event_name == 'workflow_dispatch' }}" == "true" ]; then add_service "rust-auth" "docker-rust-auth" "apps/rust-auth"; fi
 
           JSON_ARRAY="[$(IFS=,; echo "${SERVICES[*]}")]"
           echo "matrix=$JSON_ARRAY" >> $GITHUB_OUTPUT
@@ -135,9 +126,6 @@ jobs:
 
           case "$SERVICE" in
             "scraper-api") REPO="https://github.com/asepharyana/asepharyana-hub-scraper.git" ;;
-            "elysia-api") REPO="https://github.com/asepharyana/asepharyana-hub-elysia.git" ;;
-            "react-web") REPO="https://github.com/asepharyana/asepharyana-hub-react.git" ;;
-            "rust-auth") REPO="https://github.com/asepharyana/asepharyana-hub-rust-auth.git" ;;
             *)
               echo "::error::Unsupported service '$SERVICE'"
               exit 1
@@ -219,9 +207,6 @@ jobs:
           echo "cache-registry=${REGISTRY}/${IMAGE_NAME_PREFIX}/${SVC_NAME}:buildcache" >> $GITHUB_OUTPUT
           case "$SVC_NAME" in
             "scraper-api")    echo "dockerfile=infra/docker/scraper.Dockerfile" >> $GITHUB_OUTPUT ;;
-            "elysia-api")  echo "dockerfile=infra/docker/elysia.Dockerfile" >> $GITHUB_OUTPUT ;;
-            "react-web")  echo "dockerfile=infra/docker/react.Dockerfile" >> $GITHUB_OUTPUT ;;
-            "rust-auth") echo "dockerfile=infra/docker/rust.Dockerfile" >> $GITHUB_OUTPUT ;;
           esac
 
       - name: Build and Push Docker image
@@ -266,15 +251,9 @@ jobs:
 
           declare -A SERVICES
           SERVICES["scraper-api"]="scraper.yml"
-          SERVICES["elysia-api"]="elysia.yml"
-          SERVICES["react-web"]="react.yml"
-          SERVICES["rust-auth"]="rust-auth.yml"
 
           declare -A PATHS
           PATHS["scraper-api"]="apps/scraper"
-          PATHS["elysia-api"]="apps/elysia"
-          PATHS["react-web"]="apps/react"
-          PATHS["rust-auth"]="apps/rust-auth"
 
           # Use git config for possible commits
           git config --local user.email "action@github.com"
@@ -283,9 +262,6 @@ jobs:
           for id in "${!SERVICES[@]}"; do
             SHOULD_HAVE_RUN=false
             if [ "${{ needs.changes.outputs['scraper-api'] }}" == "true" ] && [ "$id" == "scraper-api" ]; then SHOULD_HAVE_RUN=true; fi
-            if [ "${{ needs.changes.outputs['elysia-api'] }}" == "true" ] && [ "$id" == "elysia-api" ]; then SHOULD_HAVE_RUN=true; fi
-            if [ "${{ needs.changes.outputs['react-web'] }}" == "true" ] && [ "$id" == "react-web" ]; then SHOULD_HAVE_RUN=true; fi
-            if [ "${{ needs.changes.outputs['rust-auth'] }}" == "true" ] && [ "$id" == "rust-auth" ]; then SHOULD_HAVE_RUN=true; fi
 
             if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then SHOULD_HAVE_RUN=true; fi
 

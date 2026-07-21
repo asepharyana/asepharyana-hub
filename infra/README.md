@@ -9,10 +9,7 @@ infra/
 ├── compose/                 # One compose file per stack/service
 │   ├── traefik.yml          # Public reverse proxy
 │   ├── shared.yml           # Shared Redis
-│   ├── react.yml            # React SPA
-│   ├── scraper.yml          # Scraper API
-│   ├── elysia.yml           # Elysia API
-│   └── rust-auth.yml        # Rust auth API
+│   └── scraper.yml          # Scraper API
 ├── docker/                  # Dockerfiles and image runtime helpers
 ├── traefik/                 # Static and dynamic Traefik configuration
 │   ├── dynamic/             # Routers, services, middlewares, TLS certs
@@ -41,10 +38,7 @@ docker compose -f infra/compose/shared.yml up -d
 docker compose -f infra/compose/traefik.yml up -d
 
 docker compose \
-  -f infra/compose/react.yml \
   -f infra/compose/scraper.yml \
-  -f infra/compose/elysia.yml \
-  -f infra/compose/rust-auth.yml \
   up -d
 ```
 
@@ -55,7 +49,6 @@ Common variables used by infra compose files:
 ```env
 DATABASE_URL=
 GITHUB_TOKEN=
-JWT_SECRET=
 SHARED_REDIS_EXPOSE=127.0.0.1:6379:6379
 ```
 

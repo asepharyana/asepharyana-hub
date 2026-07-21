@@ -36,7 +36,7 @@ jobs:
           fi
 
           case "$SERVICE" in
-            scraper-api|elysia-api|react-web|rust-auth) ;;
+            scraper-api) ;;
             *)
               echo "::error::Unsupported service '$SERVICE'"
               exit 1
