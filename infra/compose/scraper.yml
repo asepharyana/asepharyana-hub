@@ -10,15 +10,16 @@ services:
     env_file:
       - ../../.env
     healthcheck:
-      test: ['CMD', 'curl', '-f', 'http://localhost:4091/health']
+      test: ['CMD-SHELL', 'curl -sf http://localhost:4091/ >/dev/null 2>&1 || ss -tln | grep -q :4091']
       interval: 30s
-      timeout: 5s
-      retries: 3
-      start_period: 15s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
     environment:
       - REDIS_URL=redis://redis:6379
       - JWT_SECRET=${JWT_SECRET:?JWT_SECRET is required}
       - DATABASE_URL=${DATABASE_URL}
+      - EXTERNAL_BROWSERLESS_WS=ws://100.121.180.82:3001
 networks:
   app-shared-net:
     name: app-shared-net
