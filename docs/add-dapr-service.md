@@ -47,7 +47,7 @@ services:
       - '--dapr-http-port=3500'
       - '--dapr-grpc-port=50001'
       - '--placement-host-address=dapr-placement:50005'
-      - '--components-path=/components'
+      - '--resources-path=/components'
     volumes:
       - ../../infra/dapr/components:/components
 

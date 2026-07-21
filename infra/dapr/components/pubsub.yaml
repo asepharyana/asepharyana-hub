@@ -3,10 +3,8 @@ kind: Component
 metadata:
   name: pubsub
 spec:
-  type: pubsub.natsstreaming
+  type: pubsub.nats
   version: v1
   metadata:
     - name: natsURL
       value: nats://nats:4222
-    - name: natsStreamingClusterID
-      value: dapr-cluster
