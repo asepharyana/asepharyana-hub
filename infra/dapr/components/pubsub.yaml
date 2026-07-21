@@ -3,8 +3,10 @@ kind: Component
 metadata:
   name: pubsub
 spec:
-  type: pubsub.nats
+  type: pubsub.redis
   version: v1
   metadata:
-    - name: natsURL
-      value: nats://nats:4222
+    - name: redisHost
+      value: redis:6379
+    - name: redisPassword
+      value: ""
