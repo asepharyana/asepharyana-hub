@@ -16,12 +16,6 @@ services:
       - '/data'
     volumes:
       - nats_data:/data
-    healthcheck:
-      test: ['CMD-SHELL', 'wget --spider http://localhost:8222/healthz || exit 1']
-      interval: 15s
-      timeout: 5s
-      retries: 3
-      start_period: 10s
 
 volumes:
   nats_data:

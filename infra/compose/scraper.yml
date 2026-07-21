@@ -4,10 +4,10 @@ services:
     image: ghcr.io/asepharyana/asepharyana-hub/scraper-api:sha-c4ecf8f
     restart: always
     depends_on:
-      dapr-placement:
-        condition: service_healthy
       nats:
-        condition: service_healthy
+        condition: service_started
+      dapr-placement:
+        condition: service_started
     networks:
       app-shared-net:
         aliases:
@@ -31,10 +31,10 @@ services:
     image: daprio/daprd:latest
     restart: always
     depends_on:
-      dapr-placement:
-        condition: service_healthy
       nats:
-        condition: service_healthy
+        condition: service_started
+      dapr-placement:
+        condition: service_started
     networks:
       - app-shared-net
     command:
