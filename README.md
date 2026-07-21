@@ -63,12 +63,11 @@ Refer to each service's own documentation for API docs.
 
 Semua VPS terhubung via **Tailscale**. Setiap VPS punya IP Tailscale dan service berkomunikasi antar VPS melalui Tailscale network (`100.64.0.0/10`).
 
-| VPS               | Tailscale IP    | Service                                |
-| :---------------- | :-------------- | :------------------------------------- |
-| `imrnes`          | `100.108.1.124` | PostgreSQL (`hub`), Redis              |
-| `orange`          | `100.96.248.86` | App containers (Traefik, 9Router, dll) |
-| `archlinux`       | `100.114.19.66` | _(development machine)_                |
-| `laptop-2f6e1iph` | `100.86.195.29` | _(offline)_                            |
+| VPS        | Tailscale IP    | Service                                |
+| :--------- | :-------------- | :------------------------------------- |
+| `imrnes`   | `100.121.180.82` | PostgreSQL, Redis                     |
+| `orangevps` | `100.79.111.61` | App containers (Traefik, scraper-api) |
+| `archlinux` | `100.84.39.83` | _(development machine)_               |
 
 ### Container → Tailscale Connectivity
 
@@ -95,10 +94,10 @@ Service yang connect ke Tailscale IP:
 
 ```env
 # PostgreSQL di imrnes
-DATABASE_URL=postgres://user:pass@100.108.1.124:5432/dbname
+DATABASE_URL=postgres://user:pass@100.121.180.82:5432/dbname
 
 # Redis di imrnes
-REDIS_URL=redis://100.108.1.124:6379
+REDIS_URL=redis://100.121.180.82:6379
 ```
 
 #### Persistent Systemd Service
@@ -160,7 +159,7 @@ docker exec <container> node -e "
 const net = require('net');
 const c = new net.Socket();
 c.setTimeout(5000);
-c.connect(5432, '100.108.1.124', () => { console.log('OK'); c.end(); });
+c.connect(5432, '100.121.180.82', () => { console.log('OK'); c.end(); });
 c.on('error', e => { console.log('FAIL:', e.code); });
 c.on('timeout', () => { console.log('TIMEOUT'); c.destroy(); });
 "

@@ -175,7 +175,7 @@ Common scopes: `scraper`, `infra`, `ci`, `deps`
    - Updates compose manifests to use the new SHA tags
 
 6. **Deployment Pipeline** triggers after a successful Docker build:
-   - SSHes into the VPS (`orange`, Tailscale IP `100.96.248.86`)
+   - SSHes into the VPS (`orangevps`, Tailscale IP `100.79.111.61`)
    - Pulls updated Docker images
    - Recreates only the changed containers
    - All services share the `app-shared-net` Docker network

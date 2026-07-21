@@ -87,10 +87,9 @@ docker compose -f traefik.yml -f shared.yml -f scraper.yml up -d
 ```mermaid
 graph TB
     subgraph "Tailnet (100.64.0.0/10)"
-        IMRNES["imrnes (100.108.1.124)"]
-        ORANGE["orange (100.96.248.86)"]
-        ARCH["archlinux (100.114.19.66)"]
-        LAPTOP["laptop-2f6e1iph (100.86.195.29)"]
+        IMRNES["imrnes (100.121.180.82)"]
+        ORANGEVPS["orangevps (100.79.111.61)"]
+        ARCH["archlinux (100.84.39.83)"]
     end
 
     subgraph "imrnes Services"
@@ -98,7 +97,7 @@ graph TB
         REDIS[Redis]
     end
 
-    subgraph "orange Containers"
+    subgraph "orangevps Containers"
         TRAEFIK[Traefik :443]
         SCRAPER[scraper-api :4091]
     end
@@ -106,9 +105,8 @@ graph TB
     TRAEFIK --> SCRAPER
 
     style IMRNES fill:#3a7,color:#fff
-    style ORANGE fill:#37a,color:#fff
+    style ORANGEVPS fill:#37a,color:#fff
     style ARCH fill:#773,color:#fff
-    style LAPTOP fill:#777,color:#fff
 ```
 
 Container-to-Tailscale connectivity requires a systemd service that adds a route to the main routing table:
@@ -117,7 +115,7 @@ Container-to-Tailscale connectivity requires a systemd service that adds a route
 ip route add 100.64.0.0/10 dev tailscale0 table main
 ```
 
-This is managed by `/etc/systemd/system/tailscale-routes.service` on the `orange` VPS.
+This is managed by `/etc/systemd/system/tailscale-routes.service` on the `orangevps` VPS.
 
 ## Data Flow
 
@@ -133,7 +131,7 @@ sequenceDiagram
     participant Redis as Redis (imrnes via Tailscale)
 
     User->>DNS: asepharyana.my.id
-    DNS->>User: A/AAAA record → orange VPS IP
+    DNS->>User: A/AAAA record → orangevps VPS IP
     User->>Traefik: HTTPS request :443
     Traefik->>Traefik: TLS termination
     Traefik->>Traefik: Middleware chain (headers, rate-limit, buffer)
@@ -193,7 +191,7 @@ flowchart LR
 
 ### VPS Deployment
 
-The `orange` VPS (Tailscale `100.96.248.86`) hosts all application containers:
+The `orangevps` VPS (Tailscale `100.79.111.61`) hosts all application containers:
 
 1. GitHub Actions SSHes into the VPS
 2. Production secrets are written as `.env`
