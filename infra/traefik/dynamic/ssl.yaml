@@ -1,8 +1,5 @@
 tls:
   certificates:
-    # Legacy production layout: asephstech.pem is paired with asephscloud.key.
-    - certFile: /etc/traefik/certs/asephstech.pem
-      keyFile: /etc/traefik/certs/asephscloud.key
     - certFile: /etc/traefik/certs/asepharyana.my.id.pem
       keyFile: /etc/traefik/certs/asepharyana.my.id.key
     - certFile: /etc/traefik/certs/asepharyana.web.id.pem
@@ -10,5 +7,5 @@ tls:
   stores:
     default:
       defaultCertificate:
-        certFile: /etc/traefik/certs/asephstech.pem
-        keyFile: /etc/traefik/certs/asephscloud.key
+        certFile: /etc/traefik/certs/asepharyana.my.id.pem
+        keyFile: /etc/traefik/certs/asepharyana.my.id.key

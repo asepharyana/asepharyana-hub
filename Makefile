@@ -1,4 +1,4 @@
-.PHONY: help dev lint format test clean update-submodules deploy init-submodules status
+.PHONY: help dev update-submodules deploy init-submodules status
 
 SHELL := /bin/bash
 
@@ -7,16 +7,6 @@ help: ## Show this help
 
 dev: ## Start development infrastructure (Redis etc.)
 	docker compose -f infra/compose/shared.yml up -d
-
-lint: ## Run Biome linter
-	biome lint .
-
-format: ## Format code with Biome
-	biome format --write .
-
-clean: ## Clean build artifacts
-	rm -rf apps/*/dist apps/*/.next apps/*/target 2>/dev/null || true
-	rm -rf node_modules 2>/dev/null || true
 
 update-submodules: ## Update all git submodules to latest remote
 	git submodule update --remote --merge --recursive

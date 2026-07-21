@@ -8,7 +8,7 @@ set -e
 
 # Configuration
 ORG="asepharyana"
-PACKAGE_NAMES=("rust-api" "elysia-api" "nextjs-web")
+PACKAGE_NAMES=("asepharyana-hub/scraper-api")
 
 echo "🚀 Starting GHCR cleanup for $ORG..."
 

@@ -14,7 +14,7 @@
 ## Prerequisites
 
 - **Git** with LFS support
-- **Node.js** >= 22.11.0 (via `.node-version` or `.nvmrc`)
+- **Node.js** >= 22.11.0 (via `.node-version`)
 - **Bun** >= 1.3.11 (package manager)
 - **Docker** and **Docker Compose** (for shared infrastructure)
 

@@ -9,7 +9,7 @@ if [ ! -f "$ROOT_ENV" ]; then
   exit 1
 fi
 
-for parent in apps packages; do
+for parent in apps; do
   for dir in ./$parent/*/; do
     # Remove trailing slash
     dir="${dir%/}"

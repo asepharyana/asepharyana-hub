@@ -5,15 +5,15 @@ on:
   pull_request:
     branches: [main]
     paths:
-      - 'apps/*/src/**/*.ts'
-      - 'apps/*/src/**/*.tsx'
       - 'biome.json'
+      - '*.json'
+      - '*.js'
   push:
     branches: [main]
     paths:
-      - 'apps/*/src/**/*.ts'
-      - 'apps/*/src/**/*.tsx'
       - 'biome.json'
+      - '*.json'
+      - '*.js'
 
 jobs:
   biome:
@@ -23,8 +23,6 @@ jobs:
       - uses: actions/checkout@v6
         with:
           submodules: recursive
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-      - run: npm install -g @biomejs/biome
-      - run: biome ci . --no-errors-on-unmatched
+      - uses: oven-sh/setup-bun@v2
+      - run: bun install --frozen-lockfile
+      - run: bun run ci
