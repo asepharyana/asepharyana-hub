@@ -53,7 +53,7 @@ asepharyana-hub/
 
 Traefik runs as the entry point for all HTTP/S traffic. It is configured via:
 
-- **Static config**: `infra/traefik/traefik.yaml` — entry points, providers, plugins
+- **Static config**: CLI arguments in `infra/compose/traefik.yml` — entry points, providers, plugins
 - **Dynamic config**: `infra/traefik/dynamic/` — routers, services, middlewares, TLS
 - **Docker provider**: Auto-discovers containers with `traefik.enable=true` labels
 - **File provider**: Loads `apps.yaml` (routers/services), `middlewares.yaml`, `ssl.yaml`

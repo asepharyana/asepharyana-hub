@@ -15,11 +15,10 @@ infra/
 ├── docker/                  # Dockerfiles and image runtime helpers
 ├── dapr/                    # Dapr component configs
 │   ├── config.yaml          # Global Dapr configuration
-│   └── components/          # Pub/sub (NATS), state store (Redis)
-├── traefik/                 # Static and dynamic Traefik configuration
+│   └── components/          # Pub/sub (Redis), state store (Redis)
+├── traefik/                 # Dynamic Traefik configuration
 │   ├── dynamic/             # Routers, services, middlewares, TLS certs
 │   └── TRAEFIK_ENV_CONFIG.md
-└── config/                  # Service bootstrap configuration
 ```
 
 ## First-time setup
