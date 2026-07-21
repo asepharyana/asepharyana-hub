@@ -52,6 +52,44 @@ networks:
 
 Gunakan `app-shared-net` agar service dapat diakses oleh Traefik dan service lain.
 
+## 3.5. Tambahkan Dapr sidecar (wajib untuk pub/sub)
+
+Setiap service yang ingin menggunakan Dapr pub/sub atau service invocation harus punya sidecar.
+Tambah di `infra/compose/<nama-app>.yml`:
+
+```yaml
+  <nama-app>-dapr:
+    container_name: <nama-app>-dapr
+    image: daprio/daprd:latest
+    restart: always
+    depends_on:
+      dapr-placement:
+        condition: service_healthy
+      nats:
+        condition: service_healthy
+    networks:
+      - app-shared-net
+    command:
+      - './daprd'
+      - '--app-id=<nama-app>'
+      - '--app-port=<port>'
+      - '--dapr-http-port=3500'
+      - '--dapr-grpc-port=50001'
+      - '--placement-host-address=dapr-placement:50005'
+      - '--components-path=/components'
+    volumes:
+      - ../../infra/dapr/components:/components
+```
+
+Pastikan juga app container punya `depends_on` ke dapr-placement dan nats:
+```yaml
+    depends_on:
+      dapr-placement:
+        condition: service_healthy
+      nats:
+        condition: service_healthy
+```
+
 ## 4. Tambahkan route Traefik
 
 Update `infra/traefik/dynamic/apps.yaml`:

@@ -17,6 +17,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Optimized `scraper.Dockerfile`: removed Node.js and Chromium from runtime image.
 - Simplified CI/CD workflows: removed orphan container reference, commented code blocks.
 - Cleaned up scripts: removed stale MySQL config, fixed package references, simplified update-deps.
+- Added NATS + JetStream message broker infrastructure (`infra/compose/nats.yml`).
+- Added Dapr runtime infrastructure: placement service, sidecar pattern, pub/sub + state store components.
+- Integrated Dapr sidecar into scraper service (`infra/compose/scraper.yml`).
+- Updated deployment order: shared → NATS → Dapr → Traefik → apps.
+- Added `docs/add-dapr-service.md` guide for adding Dapr to new services.
 
 ### Removed
 

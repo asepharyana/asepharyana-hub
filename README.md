@@ -5,17 +5,21 @@ Aplikasi dipisah sebagai submodule agar frontend, API, dan service pendukung bis
 
 ## Services
 
-| Service | Path           | Notes               |
-| :------ | :------------- | :------------------ |
-| Scraper | `apps/scraper` | Web scraper service |
+| Service | Path           | Notes                          |
+| :------ | :------------- | :----------------------------- |
+| Scraper | `apps/scraper` | Web scraper service + Dapr SDK |
+| NATS    | —              | Message broker + JetStream     |
+| Dapr    | —              | Sidecar runtime (per service)  |
 
 ## Infrastructure
 
 File compose berada di `infra/compose/`:
 
 - `traefik.yml`: reverse proxy Traefik untuk semua layanan.
-- `shared.yml`: Redis.
-- `scraper.yml`: manifest deploy per service (image GHCR bertag SHA).
+- `shared.yml`: Redis (cache + Dapr state store).
+- `nats.yml`: NATS message broker dengan JetStream persistence.
+- `dapr.yml`: Dapr placement service untuk koordinasi sidecar.
+- `scraper.yml`: manifest deploy per service (app + Dapr sidecar).
 
 Dockerfile per service berada di `infra/docker/`.
 

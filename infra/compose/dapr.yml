@@ -1,0 +1,19 @@
+services:
+  dapr-placement:
+    container_name: dapr-placement
+    image: daprio/dapr:latest
+    restart: always
+    networks:
+      - app-shared-net
+    command: ["./placement", "--port", "50005"]
+    healthcheck:
+      test: ['CMD-SHELL', 'wget --spider http://localhost:50005/healthz || exit 1']
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+networks:
+  app-shared-net:
+    name: app-shared-net
+    external: true

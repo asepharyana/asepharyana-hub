@@ -42,7 +42,9 @@ asepharyana-hub/
 | Container Runtime  | Docker + Docker Compose | Service isolation and orchestration                              |
 | Container Registry | GHCR (ghcr.io)          | Docker image storage                                             |
 | Networking         | Tailscale               | Secure overlay network between VPS nodes                         |
-| Cache              | Redis (Alpine)          | Session store, rate limit counters, caching                      |
+| Message Bus        | NATS + JetStream        | Event-driven pub/sub, job queues, streaming                      |
+| Runtime Sidecar    | Dapr                    | Service invocation, pub/sub abstraction, state management        |
+| Cache & State      | Redis (Alpine)          | Session store, rate limit counters, caching, Dapr state store    |
 | CI/CD              | GitHub Actions          | Build, test, deploy automation                                   |
 
 ## Infrastructure
@@ -261,23 +263,49 @@ git commit -m "chore(scraper): update submodule to latest"
 
 ## Service Mesh & Inter-Service Communication
 
+### HTTP (External + Internal via Traefik)
+External traffic and internal HTTP calls route through Traefik. Services on `app-shared-net` can also communicate directly by container name.
+
+### Event-Driven (NATS + Dapr)
+NATS with JetStream provides a persistent message backbone. Each service has a Dapr sidecar that abstracts pub/sub, service invocation, and state management.
+
 ```mermaid
-graph LR
+graph TB
     subgraph "External"
         WWW[Internet]
     end
 
     subgraph "Orange VPS"
         TRAEFIK[Traefik :443]
-
+        
         subgraph "app-shared-net"
-            SCRAPER[scraper-api<br/>:4091]
+            NATS[NATS + JetStream<br/>:4222]
+            DAPR_PLACEMENT[Dapr Placement<br/>:50005]
+
+            subgraph "Service: scraper-api"
+                SCRAPER[scraper-api<br/>:4091]
+                DAPR_SIDECAR[Dapr Sidecar<br/>:3500]
+                SCRAPER --- DAPR_SIDECAR
+            end
         end
+
+        DAPR_SIDECAR -.->|gRPC pub/sub| NATS
+        DAPR_SIDECAR -.->|placement| DAPR_PLACEMENT
     end
 
     WWW -->|HTTPS| TRAEFIK
     TRAEFIK --> SCRAPER
 ```
+
+### Communication Patterns
+
+| Pattern | Mechanism | Use Case |
+|---------|-----------|----------|
+| External HTTP | Traefik → Service | User requests, API calls |
+| Internal HTTP | Service → Service (via Traefik or direct) | Synchronous queries |
+| Pub/Sub Event | Dapr sidecar → NATS JetStream | Async notifications, image cache events |
+| Service Invocation | Dapr sidecar gRPC | Cross-service RPC with retry & observability |
+| State Store | Dapr → Redis | Shared state, job progress |
 
 ## Observability
 

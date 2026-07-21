@@ -9,15 +9,18 @@ infra/
 ├── compose/                 # One compose file per stack/service
 │   ├── traefik.yml          # Public reverse proxy
 │   ├── shared.yml           # Shared Redis
-│   └── scraper.yml          # Scraper API
+│   ├── nats.yml             # NATS message broker + JetStream
+│   ├── dapr.yml             # Dapr placement service
+│   └── scraper.yml          # Scraper API (app + Dapr sidecar)
 ├── docker/                  # Dockerfiles and image runtime helpers
+├── dapr/                    # Dapr component configs
+│   ├── config.yaml          # Global Dapr configuration
+│   └── components/          # Pub/sub (NATS), state store (Redis)
 ├── traefik/                 # Static and dynamic Traefik configuration
 │   ├── dynamic/             # Routers, services, middlewares, TLS certs
 │   └── TRAEFIK_ENV_CONFIG.md
 └── config/                  # Service bootstrap configuration
 ```
-
-Archived configs that are not deployed live under `docs/config/`.
 
 ## First-time setup
 
@@ -34,12 +37,18 @@ Create `.env` from `.env.example` and fill production values. Do not commit `.en
 The GitHub deploy workflow combines the active compose files automatically. For manual deployment, use this order:
 
 ```bash
+# 1. Shared services
 docker compose -f infra/compose/shared.yml up -d
+
+# 2. Message bus + Dapr placement
+docker compose -f infra/compose/nats.yml up -d
+docker compose -f infra/compose/dapr.yml up -d
+
+# 3. Reverse proxy
 docker compose -f infra/compose/traefik.yml up -d
 
-docker compose \
-  -f infra/compose/scraper.yml \
-  up -d
+# 4. Application services (with Dapr sidecars)
+docker compose -f infra/compose/scraper.yml up -d
 ```
 
 ## Environment variables

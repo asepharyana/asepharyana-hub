@@ -3,6 +3,11 @@ services:
     container_name: scraper-api
     image: ghcr.io/asepharyana/asepharyana-hub/scraper-api:sha-c4ecf8f
     restart: always
+    depends_on:
+      dapr-placement:
+        condition: service_healthy
+      nats:
+        condition: service_healthy
     networks:
       app-shared-net:
         aliases:
@@ -20,6 +25,29 @@ services:
       - JWT_SECRET=${JWT_SECRET:?JWT_SECRET is required}
       - DATABASE_URL=${DATABASE_URL}
       - EXTERNAL_BROWSERLESS_WS=ws://100.121.180.82:3001
+
+  scraper-api-dapr:
+    container_name: scraper-api-dapr
+    image: daprio/daprd:latest
+    restart: always
+    depends_on:
+      dapr-placement:
+        condition: service_healthy
+      nats:
+        condition: service_healthy
+    networks:
+      - app-shared-net
+    command:
+      - './daprd'
+      - '--app-id=scraper-api'
+      - '--app-port=4091'
+      - '--dapr-http-port=3500'
+      - '--dapr-grpc-port=50001'
+      - '--placement-host-address=dapr-placement:50005'
+      - '--components-path=/components'
+    volumes:
+      - ../../infra/dapr/components:/components
+
 networks:
   app-shared-net:
     name: app-shared-net
