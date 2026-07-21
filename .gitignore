@@ -38,12 +38,13 @@ testem.log
 # System Files
 .DS_Store
 Thumbs.db
-.claude
+.claude/*
+!.claude/skills/
+!.claude/settings.json
 # Next.js
 .next
 out
 **/.codegraph/**
-**/.claude/**
 test-output
 **/**.env
 **/**.env.**

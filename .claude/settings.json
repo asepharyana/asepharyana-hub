@@ -1,0 +1,29 @@
+{
+  "skills": [
+    {
+      "name": "clean-code",
+      "filePattern": ".claude/skills/clean-code.md",
+      "description": "Clean Code, SOLID, dan Clean Architecture principles untuk proyek ini"
+    },
+    {
+      "name": "hub-rules",
+      "filePattern": ".claude/skills/hub-rules.md",
+      "description": "Aturan repository hub, submodule, infra patterns, dan arsitektur"
+    },
+    {
+      "name": "commit-convention",
+      "filePattern": ".claude/skills/commit-convention.md",
+      "description": "Commit message convention — type(scope): description"
+    },
+    {
+      "name": "event-driven",
+      "filePattern": ".claude/skills/event-driven.md",
+      "description": "Event-driven patterns with Dapr + NATS untuk hub services"
+    },
+    {
+      "name": "deploy-workflow",
+      "filePattern": ".claude/skills/deploy-workflow.md",
+      "description": "CI/CD pipeline, Docker patterns, deployment guide"
+    }
+  ]
+}
