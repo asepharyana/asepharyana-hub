@@ -60,9 +60,7 @@ Traefik reads dynamic config from `infra/traefik/dynamic/`:
 
 - `apps.yaml` — routers and upstream services
 - `middlewares.yaml` — shared middleware chains
-- `ssl.yaml` — TLS certificates
-
-The primary certificate intentionally pairs `asephstech.pem` with `asephscloud.key` to preserve the current production layout.
+- `ssl.yaml` — TLS certificates for `asepharyana.my.id` and `asepharyana.web.id`
 
 ## Validation
 

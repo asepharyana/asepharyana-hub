@@ -49,6 +49,13 @@ services:
       - '--experimental.plugins.real-ip.version=v1.0.3'
       - '--experimental.plugins.blockpath.moduleName=github.com/traefik/plugin-blockpath'
       - '--experimental.plugins.blockpath.version=v0.2.1'
+      - '--ping=true'
+    healthcheck:
+      test: ['CMD', 'wget', '--spider', 'http://localhost:8080/ping']
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
     environment:
       - DOCKER_API_VERSION=1.41
       - GOMEMLIMIT=4096MiB
@@ -56,10 +63,10 @@ services:
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - ${TRAEFIK_CONFIG_PATH:-/root/asepharyana-hub/infra/traefik/dynamic}:/etc/traefik/dynamic:ro
-      - ${TRAEFIK_CERT_ASEPHARYANA_MY_ID_PEM:-/root/asepharyana.my.id.pem}:/etc/traefik/certs/asepharyana.my.id.pem:ro
-      - ${TRAEFIK_CERT_ASEPHARYANA_MY_ID_KEY:-/root/asepharyana.my.id.key}:/etc/traefik/certs/asepharyana.my.id.key:ro
-      - ${TRAEFIK_CERT_ASEPHARYANA_WEB_ID_PEM:-/root/asepharyana.web.id.pem}:/etc/traefik/certs/asepharyana.web.id.pem:ro
-      - ${TRAEFIK_CERT_ASEPHARYANA_WEB_ID_KEY:-/root/asepharyana.web.id.key}:/etc/traefik/certs/asepharyana.web.id.key:ro
+      - ${TRAEFIK_CERT_MY_ID_PEM:-/root/asepharyana.my.id.pem}:/etc/traefik/certs/asepharyana.my.id.pem:ro
+      - ${TRAEFIK_CERT_MY_ID_KEY:-/root/asepharyana.my.id.key}:/etc/traefik/certs/asepharyana.my.id.key:ro
+      - ${TRAEFIK_CERT_WEB_ID_PEM:-/root/asepharyana.web.id.pem}:/etc/traefik/certs/asepharyana.web.id.pem:ro
+      - ${TRAEFIK_CERT_WEB_ID_KEY:-/root/asepharyana.web.id.key}:/etc/traefik/certs/asepharyana.web.id.key:ro
     labels:
       - 'traefik.enable=true'
       - 'traefik.http.routers.traefik.rule=Host(`traefik.asepharyana.my.id`) || Host(`traefik.asepharyana.web.id`)'

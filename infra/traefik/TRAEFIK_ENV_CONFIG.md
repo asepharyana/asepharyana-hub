@@ -8,13 +8,13 @@ All certificate paths support environment variable substitution with safe fallba
 
 ### Configuration Variables
 
-| Variable                              | Description                                                     | Default Path                                  | Purpose                                                 |
-| ------------------------------------- | --------------------------------------------------------------- | --------------------------------------------- | ------------------------------------------------------- |
-| `TRAEFIK_CONFIG_PATH`                 | Directory containing dynamic Traefik configuration files (YAML) | `/root/asepharyana-hub/infra/traefik/dynamic` | Location of middleware, router, and service definitions |
-| `TRAEFIK_CERT_ASEPHARYANA_MY_ID_PEM`  | Certificate file for asepharyana.my.id                          | `/root/asepharyana.my.id.pem`                 | SSL/TLS certificate for asepharyana.my.id domain        |
-| `TRAEFIK_CERT_ASEPHARYANA_MY_ID_KEY`  | Key file for asepharyana.my.id                                  | `/root/asepharyana.my.id.key`                 | SSL/TLS private key for asepharyana.my.id domain        |
-| `TRAEFIK_CERT_ASEPHARYANA_WEB_ID_PEM` | Certificate file for asepharyana.web.id                         | `/root/asepharyana.web.id.pem`                | SSL/TLS certificate for asepharyana.web.id domain       |
-| `TRAEFIK_CERT_ASEPHARYANA_WEB_ID_KEY` | Key file for asepharyana.web.id                                 | `/root/asepharyana.web.id.key`                | SSL/TLS private key for asepharyana.web.id domain       |
+| Variable                    | Description                                                     | Default Path                                    | Purpose                                                 |
+| --------------------------- | --------------------------------------------------------------- | ----------------------------------------------- | ------------------------------------------------------- |
+| `TRAEFIK_CONFIG_PATH`       | Directory containing dynamic Traefik configuration files (YAML) | `/root/asepharyana-hub/infra/traefik/dynamic`   | Location of middleware, router, and service definitions |
+| `TRAEFIK_CERT_MY_ID_PEM`    | Certificate file for asepharyana.my.id                          | `/root/asepharyana.my.id.pem`                   | SSL/TLS certificate for asepharyana.my.id domain        |
+| `TRAEFIK_CERT_MY_ID_KEY`    | Key file for asepharyana.my.id                                  | `/root/asepharyana.my.id.key`                   | SSL/TLS private key for asepharyana.my.id domain        |
+| `TRAEFIK_CERT_WEB_ID_PEM`   | Certificate file for asepharyana.web.id                         | `/root/asepharyana.web.id.pem`                  | SSL/TLS certificate for asepharyana.web.id domain       |
+| `TRAEFIK_CERT_WEB_ID_KEY`   | Key file for asepharyana.web.id                                 | `/root/asepharyana.web.id.key`                  | SSL/TLS private key for asepharyana.web.id domain       |
 
 ## Usage
 
@@ -42,10 +42,10 @@ Create or update your `.env` file in the deployment directory:
 
 ```env
 TRAEFIK_CONFIG_PATH=/root/asepharyana-hub/infra/traefik/dynamic
-TRAEFIK_CERT_ASEPHARYANA_MY_ID_PEM=/root/asepharyana.my.id.pem
-TRAEFIK_CERT_ASEPHARYANA_MY_ID_KEY=/root/asepharyana.my.id.key
-TRAEFIK_CERT_ASEPHARYANA_WEB_ID_PEM=/root/asepharyana.web.id.pem
-TRAEFIK_CERT_ASEPHARYANA_WEB_ID_KEY=/root/asepharyana.web.id.key
+TRAEFIK_CERT_MY_ID_PEM=/root/asepharyana.my.id.pem
+TRAEFIK_CERT_MY_ID_KEY=/root/asepharyana.my.id.key
+TRAEFIK_CERT_WEB_ID_PEM=/root/asepharyana.web.id.pem
+TRAEFIK_CERT_WEB_ID_KEY=/root/asepharyana.web.id.key
 ```
 
 Then deploy:
