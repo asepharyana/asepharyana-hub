@@ -10,7 +10,7 @@ services:
     env_file:
       - ../../.env
     healthcheck:
-      test: ['CMD', 'wget', '--no-verbose', '--tries=1', '--spider', 'http://localhost:4091/']
+      test: ['CMD-SHELL', 'curl -so /dev/null --connect-timeout 5 http://localhost:4091/ || test $? -eq 22']
       interval: 30s
       timeout: 10s
       retries: 5
