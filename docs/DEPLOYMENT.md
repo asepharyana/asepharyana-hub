@@ -644,14 +644,13 @@ Proyek compose bernama `compose`, terdiri dari 5 file yang selalu di-include ber
 
 ```bash
 /root/asepharyana-hub/infra/compose/
-├── traefik.yml     # Reverse proxy
-├── shared.yml      # Redis
-├── nats.yml        # NATS
-├── dapr.yml        # Dapr placement
-└── scraper.yml     # Scraper API
-```
+├── traefik.yml         # Reverse proxy
+├── shared.yml          # Redis
+├── nats.yml            # NATS
+├── dapr.yml            # Dapr placement
+├── scraper.yml         # Scraper API
+└── observability.yml   # OTel Collector, Jaeger, Dashboard
 
-Perintah restart setelah update `.env` di VPS:
 ```bash
 cd /root/asepharyana-hub
 docker compose \
@@ -662,6 +661,7 @@ docker compose \
   -f infra/compose/scraper.yml \
   -f infra/compose/nats.yml \
   -f infra/compose/dapr.yml \
+  -f infra/compose/observability.yml \
   up -d --remove-orphans
 ```
 

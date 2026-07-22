@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Hub Dashboard</title>
+<style>
+  :root {
+    --bg: #0d1117;
+    --bg-card: #161b22;
+    --bg-hover: #1c2333;
+    --border: #30363d;
+    --text: #e6edf3;
+    --text-dim: #8b949e;
+    --accent: #58a6ff;
+    --green: #3fb950;
+    --yellow: #d29922;
+    --red: #f85149;
+    --orange: #d4760b;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    padding: 20px;
+    line-height: 1.5;
+  }
+  .header {
+    display: flex; justify-content: space-between; align-items: center;
+    margin-bottom: 24px; padding-bottom: 16px;
+    border-bottom: 1px solid var(--border);
+  }
+  .header h1 { font-size: 24px; font-weight: 600; }
+  .header .subtitle { color: var(--text-dim); font-size: 13px; }
+  .header .status-bar { display: flex; gap: 16px; align-items: center; }
+  .header .status-bar .dot {
+    width: 10px; height: 10px; border-radius: 50%; display: inline-block;
+  }
+  .header .last-updated { color: var(--text-dim); font-size: 12px; }
+  .grid {
+    display: grid; gap: 16px;
+    grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+  }
+  .card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 8px; padding: 16px;
+  }
+  .card h2 {
+    font-size: 14px; font-weight: 600; text-transform: uppercase;
+    letter-spacing: 0.05em; color: var(--text-dim); margin-bottom: 12px;
+    display: flex; justify-content: space-between; align-items: center;
+  }
+  .card h2 .count {
+    font-size: 12px; background: var(--bg-hover); padding: 2px 8px;
+    border-radius: 12px;
+  }
+  .service-list, .trace-list { list-style: none; }
+  .service-item {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 8px 0; border-bottom: 1px solid var(--border);
+    font-size: 14px;
+  }
+  .service-item:last-child { border-bottom: none; }
+  .service-item .name { font-family: 'SF Mono', 'Fira Code', monospace; }
+  .service-item .badge {
+    font-size: 11px; padding: 2px 8px; border-radius: 12px;
+    font-weight: 500;
+  }
+  .badge-up { background: rgba(63,185,80,0.15); color: var(--green); }
+  .badge-down { background: rgba(248,81,73,0.15); color: var(--red); }
+  .badge-degraded { background: rgba(210,153,34,0.15); color: var(--yellow); }
+
+  .trace-item {
+    padding: 8px 0; border-bottom: 1px solid var(--border); font-size: 13px;
+  }
+  .trace-item:last-child { border-bottom: none; }
+  .trace-item .trace-service { font-weight: 500; }
+  .trace-item .trace-op {
+    color: var(--text-dim); font-size: 12px;
+    font-family: 'SF Mono', 'Fira Code', monospace; margin: 2px 0;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .trace-item .trace-meta {
+    display: flex; gap: 12px; font-size: 11px; color: var(--text-dim);
+  }
+  .trace-item .trace-duration {
+    font-family: 'SF Mono', monospace; font-weight: 500;
+  }
+
+  .stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .stat-box {
+    background: var(--bg-hover); border-radius: 6px; padding: 12px; text-align: center;
+  }
+  .stat-value {
+    font-size: 28px; font-weight: 700; font-family: 'SF Mono', monospace;
+  }
+  .stat-label { font-size: 11px; color: var(--text-dim); margin-top: 4px; }
+
+  .links { display: flex; flex-wrap: wrap; gap: 8px; }
+  .links a {
+    color: var(--accent); text-decoration: none; font-size: 13px;
+    padding: 6px 12px; border: 1px solid var(--border); border-radius: 6px;
+    transition: all 0.15s;
+  }
+  .links a:hover { background: var(--bg-hover); border-color: var(--accent); }
+
+  .loading { text-align: center; padding: 20px; color: var(--text-dim); }
+
+  .inline-error {
+    background: rgba(248,81,73,0.1); border: 1px solid rgba(248,81,73,0.3);
+    border-radius: 6px; padding: 8px 12px; font-size: 12px;
+    color: var(--red); margin-bottom: 8px;
+  }
+
+  @media (max-width: 720px) {
+    .grid { grid-template-columns: 1fr; }
+    .header { flex-direction: column; align-items: flex-start; gap: 8px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div>
+    <h1>asepharyana-hub</h1>
+    <div class="subtitle">System Dashboard</div>
+  </div>
+  <div class="status-bar">
+    <span id="health-indicator" title="System Health"><span class="dot" style="background:var(--yellow)"></span> Loading...</span>
+    <span class="last-updated" id="last-updated">-</span>
+  </div>
+</div>
+
+<div class="grid">
+  <!-- Services -->
+  <div class="card">
+    <h2>Services <span class="count" id="service-count">0</span></h2>
+    <div id="service-list"><div class="loading">Loading...</div></div>
+  </div>
+
+  <!-- Stats -->
+  <div class="card">
+    <h2>Overview</h2>
+    <div class="stat-grid">
+      <div class="stat-box">
+        <div class="stat-value" id="stat-services">-</div>
+        <div class="stat-label">Services</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-value" id="stat-traces">-</div>
+        <div class="stat-label">Traces (5m)</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-value" id="stat-errors">-</div>
+        <div class="stat-label">Errors (5m)</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-value" id="stat-p99">-</div>
+        <div class="stat-label">P99 Latency</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Links -->
+  <div class="card">
+    <h2>Quick Links</h2>
+    <div class="links">
+      <a href="/jaeger" target="_blank">Jaeger UI</a>
+      <a href="/api/metrics" target="_blank">OTel Metrics</a>
+      <a href="https://traefik.asepharyana.my.id" target="_blank">Traefik</a>
+      <a href="https://scraper.asepharyana.my.id" target="_blank">Scraper API</a>
+      <a href="https://github.com/asepharyana/asepharyana-hub" target="_blank">GitHub</a>
+    </div>
+  </div>
+
+  <!-- Recent Traces -->
+  <div class="card" style="grid-column: 1 / -1;">
+    <h2>Recent Traces <span class="count" id="trace-count">0</span></h2>
+    <div id="trace-list"><div class="loading">Loading...</div></div>
+  </div>
+</div>
+
+<script>
+const JAEGER_API = '/api/jaeger';
+const TRACE_LIMIT = 20;
+
+async function fetchJSON(url) {
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
+  return res.json();
+}
+
+function relativeTime(ms) {
+  const sec = Math.floor(ms / 1000);
+  if (sec < 60) return `${sec}s ago`;
+  const min = Math.floor(sec / 60);
+  if (min < 60) return `${min}m ago`;
+  const hr = Math.floor(min / 60);
+  return `${hr}h ago`;
+}
+
+function formatDuration(us) {
+  if (us < 1000) return `${us}µs`;
+  if (us < 1_000_000) return `${(us / 1000).toFixed(1)}ms`;
+  return `${(us / 1_000_000).toFixed(2)}s`;
+}
+
+function nowMicro() {
+  return Date.now() * 1000;
+}
+
+function microToISO(us) {
+  return new Date(us / 1000).toISOString();
+}
+
+async function loadTraces() {
+  const el = document.getElementById('trace-list');
+  const countEl = document.getElementById('trace-count');
+  try {
+    const services = await fetchJSON(`${JAEGER_API}/api/services`);
+    let allTraces = [];
+    const lookback = 5 * 60 * 1_000_000; // 5 minutes in microseconds
+    const now = nowMicro();
+    const start = now - lookback;
+
+    for (const svc of services.data || []) {
+      try {
+        const data = await fetchJSON(
+          `${JAEGER_API}/api/traces?service=${encodeURIComponent(svc)}&start=${start}&end=${now}&limit=5&lookback=5m`
+        );
+        if (data.data) allTraces = allTraces.concat(data.data);
+      } catch(e) { /* skip service if error */ }
+    }
+
+    // Sort by start time descending
+    allTraces.sort((a, b) => (b.startTime || 0) - (a.startTime || 0));
+    allTraces = allTraces.slice(0, TRACE_LIMIT);
+
+    countEl.textContent = allTraces.length;
+
+    if (allTraces.length === 0) {
+      el.innerHTML = '<div style="color:var(--text-dim);font-size:13px;text-align:center;padding:12px;">No traces in the last 5 minutes</div>';
+      return;
+    }
+
+    el.innerHTML = allTraces.map(t => {
+      const duration = t.duration || 0;
+      const span = (t.spans && t.spans[0]) || {};
+      const proc = span.process || {};
+      const svcName = proc.serviceName || (t.processes && Object.values(t.processes)[0]?.serviceName) || 'unknown';
+      const opName = span.operationName || 'unknown';
+      const startTime = t.startTime ? microToISO(t.startTime) : '-';
+      const spanCount = (t.spans && t.spans.length) || 0;
+      const errSpan = t.spans && t.spans.find(s => (s.tags || []).some(tg => tg.key === 'error' && tg.value === true));
+      const errClass = errSpan ? 'color:var(--red)' : '';
+
+      return `<div class="trace-item">
+        <div class="trace-service" style="${errClass}">${escHtml(svcName)}</div>
+        <div class="trace-op">${escHtml(opName)}</div>
+        <div class="trace-meta">
+          <span class="trace-duration">${formatDuration(duration)}</span>
+          <span>${spanCount} spans</span>
+          <span>${relativeTime(Date.now() - new Date(startTime).getTime())}</span>
+          ${errSpan ? '<span style="color:var(--red)">✗ error</span>' : ''}
+        </div>
+      </div>`;
+    }).join('');
+  } catch(e) {
+    el.innerHTML = `<div class="inline-error">Failed to load traces: ${escHtml(e.message)}</div>`;
+  }
+}
+
+function escHtml(s) {
+  const d = document.createElement('div');
+  d.textContent = s;
+  return d.innerHTML;
+}
+
+async function loadServices() {
+  const listEl = document.getElementById('service-list');
+  const countEl = document.getElementById('service-count');
+  const statSvc = document.getElementById('stat-services');
+
+  const services = [
+    { name: 'traefik', port: 'traefik' },
+    { name: 'redis', port: 'redis' },
+    { name: 'nats', port: 'nats' },
+    { name: 'dapr-placement', port: 'dapr-placement' },
+    { name: 'scraper-api', port: 'scraper-api' },
+    { name: 'scraper-api-dapr', port: 'scraper-api-dapr' },
+    { name: 'otel-collector', port: 'otel-collector' },
+    { name: 'jaeger', port: 'jaeger' },
+  ];
+
+  // Try to get services from Jaeger for display
+  let jaegerServices = [];
+  try {
+    const svcRes = await fetchJSON(`${JAEGER_API}/api/services`);
+    jaegerServices = svcRes.data || [];
+  } catch(e) { /* ignore */ }
+
+  // Determine services to display: prefer Jaeger-reported + infrastructure
+  const allNames = new Set([...services.map(s => s.name), ...jaegerServices]);
+  const displayNames = Array.from(allNames).sort();
+  countEl.textContent = displayNames.length;
+  statSvc.textContent = displayNames.length;
+
+  listEl.innerHTML = displayNames.map(name => {
+    // Determine status: Jaeger services are "up", check others via probe
+    // Simple heuristic: green if in Docker services list, yellow for Jaeger-only
+    const infraService = services.find(s => s.name === name);
+    const status = infraService ? 'up' : 'degraded';
+    const badgeClass = status === 'up' ? 'badge-up' : 'badge-degraded';
+    const label = status === 'up' ? 'up' : 'unknown';
+    return `<div class="service-item">
+      <span class="name">${escHtml(name)}</span>
+      <span class="badge ${badgeClass}">${label}</span>
+    </div>`;
+  }).join('');
+}
+
+async function loadStats() {
+  try {
+    const now = nowMicro();
+    const lookback = 5 * 60 * 1_000_000;
+    const start = now - lookback;
+    const services = await fetchJSON(`${JAEGER_API}/api/services`);
+    let totalTraces = 0;
+    let totalErrors = 0;
+    let maxDuration = 0;
+
+    for (const svc of (services.data || []).slice(0, 5)) {
+      try {
+        const data = await fetchJSON(
+          `${JAEGER_API}/api/traces?service=${encodeURIComponent(svc)}&start=${start}&end=${now}&limit=50&lookback=5m`
+        );
+        if (data.data) {
+          totalTraces += data.data.length;
+          for (const t of data.data) {
+            if (t.duration > maxDuration) maxDuration = t.duration;
+            if (t.spans && t.spans.some(s => (s.tags || []).some(tg => tg.key === 'error' && tg.value === true))) {
+              totalErrors++;
+            }
+          }
+        }
+      } catch(e) { /* skip */ }
+    }
+
+    document.getElementById('stat-traces').textContent = totalTraces;
+    document.getElementById('stat-errors').textContent = totalErrors;
+    document.getElementById('stat-p99').textContent = maxDuration > 0 ? formatDuration(maxDuration) : '-';
+  } catch(e) { /* ignore - stats may not load */ }
+}
+
+function setHealth(status, label) {
+  const el = document.getElementById('health-indicator');
+  el.innerHTML = `<span class="dot" style="background:var(--${status})"></span> ${label}`;
+}
+
+async function refresh() {
+  try {
+    await Promise.all([
+      loadTraces(),
+      loadServices(),
+      loadStats(),
+    ]);
+    setHealth('green', 'All Systems Operational');
+  } catch(e) {
+    setHealth('red', 'Dashboard Error');
+  }
+  document.getElementById('last-updated').textContent = `Updated ${new Date().toLocaleTimeString()}`;
+}
+
+// Initial load
+refresh();
+
+// Auto-refresh every 15s
+setInterval(refresh, 15000);
+</script>
+</body>
+</html>

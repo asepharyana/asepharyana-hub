@@ -50,6 +50,11 @@ services:
       - '--experimental.plugins.blockpath.moduleName=github.com/traefik/plugin-blockpath'
       - '--experimental.plugins.blockpath.version=v0.2.1'
       - '--ping=true'
+      - '--tracing.openTelemetry=true'
+      - '--tracing.openTelemetry.address=otel-collector:4318'
+      - '--tracing.openTelemetry.insecure=true'
+      - '--tracing.openTelemetry.grpc=false'
+      - '--tracing.serviceName=traefik'
     healthcheck:
       test: ['CMD', 'wget', '--spider', 'http://localhost:8080/ping']
       interval: 30s

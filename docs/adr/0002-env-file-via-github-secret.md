@@ -70,11 +70,12 @@ The VPS runs a single Docker Compose project named `compose` composed of multipl
 
 ```bash
 /root/asepharyana-hub/infra/compose/
-├── traefik.yml    # Reverse proxy (TLS termination, routing)
-├── shared.yml     # Redis
-├── nats.yml       # NATS message broker + JetStream
-├── dapr.yml       # Dapr placement service
-└── scraper.yml    # Scraper API + Dapr sidecar
+├── traefik.yml         # Reverse proxy (TLS termination, routing)
+├── shared.yml          # Redis
+├── nats.yml            # NATS message broker + JetStream
+├── dapr.yml            # Dapr placement service
+├── scraper.yml         # Scraper API + Dapr sidecar
+└── observability.yml   # OTel Collector + Jaeger + Dashboard
 ```
 
 All files are always included together for dependency resolution:
@@ -87,6 +88,7 @@ docker compose \
   -f infra/compose/scraper.yml \
   -f infra/compose/nats.yml \
   -f infra/compose/dapr.yml \
+  -f infra/compose/observability.yml \
   up -d
 ```
 

@@ -35,6 +35,8 @@ services:
         condition: service_started
       dapr-placement:
         condition: service_started
+      otel-collector:
+        condition: service_started
     networks:
       - app-shared-net
     command:
@@ -44,9 +46,10 @@ services:
       - '--dapr-http-port=3500'
       - '--dapr-grpc-port=50001'
       - '--placement-host-address=dapr-placement:50005'
-      - '--resources-path=/components'
+      - '--config=/dapr/config.yaml'
+      - '--resources-path=/dapr/components'
     volumes:
-      - ../../infra/dapr/components:/components
+      - ../../infra/dapr:/dapr:ro
 
 networks:
   app-shared-net:
