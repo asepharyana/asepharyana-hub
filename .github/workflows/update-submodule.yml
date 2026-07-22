@@ -52,14 +52,19 @@ jobs:
         run: |
           set -euo pipefail
 
-          echo "Updating ${SERVICE} to ${SHA}"
-          git submodule update --init "apps/${SERVICE}"
-          cd "apps/${SERVICE}"
-          # full fetch so we get tree objects for the target SHA
+          # Map service name to submodule path
+          case "$SERVICE" in
+            scraper-api) SUBMODULE_PATH="apps/scraper" ;;
+            *)           SUBMODULE_PATH="apps/${SERVICE}" ;;
+          esac
+
+          echo "Updating ${SUBMODULE_PATH} to ${SHA}"
+          git submodule update --init "${SUBMODULE_PATH}"
+          cd "${SUBMODULE_PATH}"
           git fetch --depth=1 origin master 2>/dev/null || git fetch --depth=1 origin main
           git checkout "${SHA}"
           cd "${GITHUB_WORKSPACE}"
-          git add "apps/${SERVICE}"
+          git add "${SUBMODULE_PATH}"
           git diff --cached --quiet && exit 0
 
           git config user.name "monrepo-bot"
