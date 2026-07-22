@@ -24,8 +24,6 @@ var templateHTML string
 
 var tmpl = template.Must(template.New("dashboard").Funcs(template.FuncMap{
 	"sub":       func(a, b int) int { return a - b },
-	"divF":     func(a, b float64) float64 { return a / b },
-	"hasSuffix": strings.HasSuffix,
 	"safeDur": func(us int64) string {
 		if us < 1000 {
 			return fmt.Sprintf("%dµs", us)
@@ -39,8 +37,9 @@ var tmpl = template.Must(template.New("dashboard").Funcs(template.FuncMap{
 // ── Types ──
 
 type Service struct {
-	Name  string
-	State string
+	Name   string
+	State  string
+	HasWeb bool // has traefik router label → eligible for quick link
 }
 
 type Trace struct {
@@ -51,11 +50,22 @@ type Trace struct {
 	HasError  bool
 }
 
+type NodeMetrics struct {
+	CPU    float64 // percent
+	RAM    float64 // percent
+	Disk   float64 // percent
+	Load1  float64
+	Load5  float64
+	Load15 float64
+	NetIn  float64 // bytes/s
+	NetOut float64 // bytes/s
+	Online bool
+}
+
 type DashboardData struct {
 	Services     []Service
 	Running      int
-	Down         int
-	OTelOnly     int
+	Degraded     int
 	TraceCount   int
 	RPS          []float64
 	Latency      []float64
@@ -63,15 +73,26 @@ type DashboardData struct {
 	TraceVolume  []float64
 	TraceList    []Trace
 	Labels       []string
+	Node         NodeMetrics
+	Links        []Link
+	HasOTelData  bool
+	HasNodeData  bool
 	HealthSVG    template.HTML
 	RPSSVG       template.HTML
 	LatencySVG   template.HTML
 	ErrorSVG     template.HTML
 	TraceSVG     template.HTML
+	CPUSVG       template.HTML
+	RAMSVG       template.HTML
+	DiskSVG      template.HTML
 	SystemName   string
-	Error        string
 	TotalUp      int
 	TotalDown    int
+}
+
+type Link struct {
+	URL   string
+	Label string
 }
 
 // ── State ──
@@ -85,13 +106,14 @@ type appState struct {
 	labels   []string
 	services []Service
 	tracesL  []Trace
+	node     NodeMetrics
 }
 
 var state appState
 
 const maxPts = 30
 
-// ── Docker socket client ──
+// ── HTTP clients ──
 
 var dockerClient = &http.Client{
 	Transport: &http.Transport{
@@ -104,7 +126,7 @@ var dockerClient = &http.Client{
 
 var httpClient = &http.Client{Timeout: 10 * time.Second}
 
-// ── Helpers ──
+var composeProject string // auto-detected from Docker labels
 
 func fetchJSON(url string, v interface{}) error {
 	r, err := httpClient.Get(url)
@@ -115,7 +137,7 @@ func fetchJSON(url string, v interface{}) error {
 	return json.NewDecoder(r.Body).Decode(v)
 }
 
-// ── Docker ──
+// ── Docker service discovery ──
 
 func fetchServices() []Service {
 	r, err := dockerClient.Get("http://localhost/containers/json?all=true")
@@ -124,9 +146,9 @@ func fetchServices() []Service {
 	}
 	defer r.Body.Close()
 	var raw []struct {
-		Names            []string `json:"Names"`
-		State            string   `json:"State"`
-		Labels           map[string]string `json:"Labels"`
+		Names   []string `json:"Names"`
+		State   string   `json:"State"`
+		Labels  map[string]string `json:"Labels"`
 		NetworkSettings *struct {
 			Networks map[string]any `json:"Networks"`
 		} `json:"NetworkSettings"`
@@ -134,13 +156,35 @@ func fetchServices() []Service {
 	if json.NewDecoder(r.Body).Decode(&raw) != nil {
 		return nil
 	}
+
+	// auto-detect compose project name from first compose-managed container
+	if composeProject == "" {
+		for _, c := range raw {
+			if p, ok := c.Labels["com.docker.compose.project"]; ok && p != "" {
+				composeProject = p
+				break
+			}
+		}
+	}
+
 	var svcs []Service
 	for _, c := range raw {
 		if c.NetworkSettings != nil {
 			if _, ok := c.NetworkSettings.Networks["app-shared-net"]; ok {
-				// Only include containers from the hub compose project
-				if c.Labels["com.docker.compose.project"] == "compose" {
-					svcs = append(svcs, Service{Name: strings.TrimPrefix(c.Names[0], "/"), State: c.State})
+				// only include containers from our compose project
+				if c.Labels["com.docker.compose.project"] == composeProject {
+					name := strings.TrimPrefix(c.Names[0], "/")
+					// auto-detect web services by traefik label
+					hasWeb := false
+					for k := range c.Labels {
+						if strings.HasPrefix(k, "traefik.http.routers.") && strings.HasSuffix(k, ".rule") {
+							hasWeb = true
+							break
+						}
+					}
+					// also flag containers that look like web services (named with trailing numbers or common patterns)
+					// but don't hardcode names — trust only labels
+					svcs = append(svcs, Service{Name: name, State: c.State, HasWeb: hasWeb})
 				}
 			}
 		}
@@ -205,9 +249,29 @@ func jaegerTraces(service string) []Trace {
 	return tt
 }
 
-// ── Prometheus ──
+// ── Prometheus helpers ──
 
-func promQuery(query string) []float64 {
+// promInstant returns a single float64 value from an instant query
+func promInstant(query string) (float64, bool) {
+	u := fmt.Sprintf("http://prometheus:9090/api/v1/query?query=%s",
+		url.QueryEscape(query))
+	var d struct {
+		Data struct {
+			Result []struct {
+				Value []any `json:"value"`
+			} `json:"result"`
+		} `json:"data"`
+	}
+	if fetchJSON(u, &d) != nil || len(d.Data.Result) == 0 || len(d.Data.Result[0].Value) < 2 {
+		return 0, false
+	}
+	var f float64
+	fmt.Sscanf(fmt.Sprint(d.Data.Result[0].Value[1]), "%f", &f)
+	return f, true
+}
+
+// promRange returns time-series values from a range query
+func promRange(query string) []float64 {
 	now := time.Now().Unix()
 	u := fmt.Sprintf("http://prometheus:9090/api/v1/query_range?query=%s&start=%d&end=%d&step=15",
 		url.QueryEscape(query), now-300, now)
@@ -232,20 +296,55 @@ func promQuery(query string) []float64 {
 	return vals
 }
 
+// ── Node metrics ──
+
+func fetchNodeMetrics() NodeMetrics {
+	n := NodeMetrics{}
+
+	if v, ok := promInstant(`100 - (avg by(instance)(rate(node_cpu_seconds_total{mode="idle"}[1m])) * 100)`); ok {
+		n.CPU = v
+	}
+	if v, ok := promInstant(`(1 - node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes) * 100`); ok {
+		n.RAM = v
+	}
+	if v, ok := promInstant(`(1 - node_filesystem_avail_bytes{mountpoint="/",fstype!="tmpfs"} / node_filesystem_size_bytes{mountpoint="/",fstype!="tmpfs"}) * 100`); ok {
+		n.Disk = v
+	}
+	if v, ok := promInstant(`node_load1`); ok {
+		n.Load1 = v
+	}
+	if v, ok := promInstant(`node_load5`); ok {
+		n.Load5 = v
+	}
+	if v, ok := promInstant(`node_load15`); ok {
+		n.Load15 = v
+	}
+	if vIn, okIn := promInstant(`rate(node_network_receive_bytes_total{device!="lo"}[1m])`); okIn {
+		n.NetIn = vIn
+	}
+	if vOut, okOut := promInstant(`rate(node_network_transmit_bytes_total{device!="lo"}[1m])`); okOut {
+		n.NetOut = vOut
+	}
+
+	// node is online if at least CPU or RAM returned data
+	n.Online = n.CPU > 0 || n.RAM > 0
+	return n
+}
+
 // ── SVG Charts ──
 
-func svgDonut(running, down, otel int) string {
-	total := running + down + otel
+func svgDonut(running, degraded int) string {
+	total := running + degraded
 	if total == 0 {
-		return `<svg width="200" height="210" viewBox="0 0 200 210"><text x="100" y="105" text-anchor="middle" fill="#6e7681" font-size="12" font-family="system-ui,sans-serif">No data</text></svg>`
+		return noDataSVG(200, 210)
 	}
 	const cx, cy, R = 100, 90, 60
 	const circ = 2 * math.Pi * R
 	type seg struct{ n int; c, l string }
-	segs := []seg{{running, "#3fb950", "Running"}, {down, "#f85149", "Down"}, {otel, "#58a6ff", "OTel"}}
+	segs := []seg{{running, "#3fb950", "Running"}, {degraded, "#d29922", "Degraded"}}
 
 	var b strings.Builder
-	b.WriteString(fmt.Sprintf(`<svg width="200" height="210" viewBox="0 0 200 210" xmlns="http://www.w3.org/2000/svg">`))
+	b.WriteString(`<svg width="200" height="210" viewBox="0 0 200 210" xmlns="http://www.w3.org/2000/svg">`)
 	b.WriteString(`<style>.sl{font-family:system-ui,sans-serif;font-size:10px;fill:#8b949e}</style>`)
 
 	var off float64
@@ -260,22 +359,16 @@ func svgDonut(running, down, otel int) string {
 		off += ln
 	}
 
-	// Center
 	b.WriteString(fmt.Sprintf(`<text x="%d" y="%d" text-anchor="middle" fill="#e6edf3" font-size="26" font-weight="700" font-family="system-ui,sans-serif">%d</text>`, cx, cy-4, total))
 	b.WriteString(fmt.Sprintf(`<text x="%d" y="%d" text-anchor="middle" class="sl">total</text>`, cx, cy+14))
 
-	// Legend
 	y := 165
 	for _, s := range segs {
-		pct := 0.0
-		if total > 0 {
-			pct = float64(s.n) / float64(total) * 100
+		if s.n == 0 {
+			continue
 		}
-		if s.n > 0 || s.l == "Running" {
-			b.WriteString(fmt.Sprintf(`<circle cx="16" cy="%d" r="4" fill="%s"/>`, y, s.c))
-			b.WriteString(fmt.Sprintf(`<text x="26" y="%d" class="sl">%s: %d (%.0f%%)</text>`, y+3, s.l, s.n, pct))
-			y += 16
-		}
+		fmt.Fprintf(&b, `<circle cx="16" cy="%d" r="4" fill="%s"/><text x="26" y="%d" class="sl">%s: %d</text>`, y, s.c, y+3, s.l, s.n)
+		y += 16
 	}
 	b.WriteString(`</svg>`)
 	return b.String()
@@ -288,9 +381,7 @@ func svgLine(data []float64, color string) string {
 	vh := h - pt - pb
 
 	if len(data) == 0 {
-		return fmt.Sprintf(`<svg width="%.0f" height="%.0f" viewBox="0 0 %.0f %.0f" xmlns="http://www.w3.org/2000/svg">
-			<text x="%.0f" y="%.0f" text-anchor="middle" fill="#6e7681" font-size="11" font-family="system-ui,sans-serif">No data</text></svg>`,
-			w, h, w, h, w/2, h/2)
+		return noDataSVG(int(w), int(h))
 	}
 
 	maxV := 0.0
@@ -304,15 +395,14 @@ func svgLine(data []float64, color string) string {
 	}
 
 	var b strings.Builder
-	b.WriteString(fmt.Sprintf(`<svg width="%.0f" height="%.0f" viewBox="0 0 %.0f %.0f" xmlns="http://www.w3.org/2000/svg">`, w, h, w, h))
+	fmt.Fprintf(&b, `<svg width="%.0f" height="%.0f" viewBox="0 0 %.0f %.0f" xmlns="http://www.w3.org/2000/svg">`, w, h, w, h)
 	b.WriteString(`<style>.ax{font-family:system-ui,sans-serif;font-size:9px;fill:#6e7681}</style>`)
 
-	// Grid
 	for i := 0; i <= 4; i++ {
 		y := pt + vh*float64(i)/4
 		val := maxV * (1 - float64(i)/4)
-		b.WriteString(fmt.Sprintf(`<line x1="%.0f" y1="%.0f" x2="%.0f" y2="%.0f" stroke="#21262d" stroke-width="1"/>`, pl, y, pl+vw, y))
-		b.WriteString(fmt.Sprintf(`<text x="%.0f" y="%.0f" text-anchor="end" class="ax">%.0f</text>`, pl-6, y+3, val))
+		fmt.Fprintf(&b, `<line x1="%.0f" y1="%.0f" x2="%.0f" y2="%.0f" stroke="#21262d" stroke-width="1"/>`, pl, y, pl+vw, y)
+		fmt.Fprintf(&b, `<text x="%.0f" y="%.0f" text-anchor="end" class="ax">%.0f</text>`, pl-6, y+3, val)
 	}
 
 	n := len(data)
@@ -323,34 +413,59 @@ func svgLine(data []float64, color string) string {
 			y := pt + vh*(1-v/maxV)
 			pts[i] = fmt.Sprintf("%.1f,%.1f", x, y)
 		}
-
-		// Area
 		area := fmt.Sprintf("M%.1f,%.1f L%s L%.1f,%.1f Z", pl, pt+vh, strings.Join(pts, " L"), pl+vw, pt+vh)
-		b.WriteString(fmt.Sprintf(`<path d="%s" fill="%s" opacity="0.15"/>`, area, color))
+		fmt.Fprintf(&b, `<path d="%s" fill="%s" opacity="0.15"/>`, area, color)
+		fmt.Fprintf(&b, `<polyline points="%s" fill="none" stroke="%s" stroke-width="2" stroke-linejoin="round"/>`,
+			strings.Join(pts, " "), color)
 
-		// Line
-		b.WriteString(fmt.Sprintf(`<polyline points="%s" fill="none" stroke="%s" stroke-width="2" stroke-linejoin="round"/>`,
-			strings.Join(pts, " "), color))
-
-		// Last value
 		lv := data[n-1]
 		ly := pt + vh*(1-lv/maxV)
-		b.WriteString(fmt.Sprintf(`<text x="%.0f" y="%.0f" text-anchor="end" fill="%s" font-size="11" font-weight="600" font-family="system-ui,sans-serif">%.1f</text>`,
-			pl+vw, ly-10, color, lv))
+		fmt.Fprintf(&b, `<text x="%.0f" y="%.0f" text-anchor="end" fill="%s" font-size="11" font-weight="600" font-family="system-ui,sans-serif">%.1f</text>`,
+			pl+vw, ly-10, color, lv)
 	}
 
-	// X labels
 	step := n / 5
 	if step < 1 {
 		step = 1
 	}
 	for i := step; i < n; i += step {
 		x := pl + vw*float64(i)/float64(n-1)
-		b.WriteString(fmt.Sprintf(`<text x="%.0f" y="%.0f" text-anchor="middle" class="ax">%d</text>`, x, pt+vh+16, i+1))
+		fmt.Fprintf(&b, `<text x="%.0f" y="%.0f" text-anchor="middle" class="ax">%d</text>`, x, pt+vh+16, i+1)
 	}
-
 	b.WriteString(`</svg>`)
 	return b.String()
+}
+
+func svgGauge(pct float64, color, label, unit string) string {
+	if pct <= 0 {
+		return noDataSVG(220, 100)
+	}
+	w, h := 220.0, 100.0
+	bw, bh := 200.0, 14.0
+	bx, by := (w-bw)/2, 30.0
+	fw := bw * math.Min(pct/100, 1)
+
+	var b strings.Builder
+	fmt.Fprintf(&b, `<svg width="%.0f" height="%.0f" viewBox="0 0 %.0f %.0f" xmlns="http://www.w3.org/2000/svg">`, w, h, w, h)
+	b.WriteString(`<style>.gt{font-family:system-ui,sans-serif;font-size:11px;fill:#8b949e;text-anchor:middle}</style>`)
+
+	// background bar
+	fmt.Fprintf(&b, `<rect x="%.0f" y="%.0f" width="%.0f" height="%.0f" rx="7" ry="7" fill="#1c2333"/>`, bx, by, bw, bh)
+	// fill bar
+	if fw > 0 {
+		fmt.Fprintf(&b, `<rect x="%.0f" y="%.0f" width="%.0f" height="%.0f" rx="7" ry="7" fill="%s" opacity="0.85"/>`, bx, by, fw, bh, color)
+	}
+	// label
+	fmt.Fprintf(&b, `<text x="%.0f" y="14" class="gt" font-weight="600" fill="%s">%s</text>`, w/2, color, label)
+	// value
+	fmt.Fprintf(&b, `<text x="%.0f" y="%.0f" class="gt" fill="#e6edf3" font-size="14" font-weight="700">%.1f%s</text>`, w/2, by+bh+24, pct, unit)
+	b.WriteString(`</svg>`)
+	return b.String()
+}
+
+func noDataSVG(w, h int) string {
+	return fmt.Sprintf(`<svg width="%d" height="%d" viewBox="0 0 %d %d" xmlns="http://www.w3.org/2000/svg"><text x="%d" y="%d" text-anchor="middle" fill="#6e7681" font-size="12" font-family="system-ui,sans-serif">No data</text></svg>`,
+		w, h, w, h, w/2, h/2)
 }
 
 // ── Refresh ──
@@ -358,6 +473,7 @@ func svgLine(data []float64, color string) string {
 func refresh() {
 	svcs := fetchServices()
 
+	// Merge Jaeger-discovered services
 	jaegerS := jaegerServices()
 	for _, s := range jaegerS {
 		found := false
@@ -372,7 +488,7 @@ func refresh() {
 		}
 	}
 	sort.Slice(svcs, func(i, j int) bool {
-		o := map[string]int{"running": 0, "jaeger": 1, "paused": 2, "exited": 3, "restarting": 4}
+		o := map[string]int{"running": 0, "jaeger": 1, "exited": 2, "restarting": 3}
 		oi, oj := o[svcs[i].State], o[svcs[j].State]
 		if oi != oj {
 			return oi < oj
@@ -392,14 +508,18 @@ func refresh() {
 		traces = traces[:20]
 	}
 
-	// Prometheus
-	rps := promQuery("rate(otelcol_receiver_accepted_spans[1m])")
-	lat := promQuery("otelcol_receiver_accepted_spans")
-	err := promQuery("rate(otelcol_receiver_refused_spans[1m])")
+	// Prometheus OTel metrics
+	rps := promRange("rate(otelcol_receiver_accepted_spans[1m])")
+	lat := promRange("otelcol_receiver_accepted_spans")
+	err := promRange("rate(otelcol_receiver_refused_spans[1m])")
+
+	// Node metrics
+	node := fetchNodeMetrics()
 
 	state.mu.Lock()
 	state.services = svcs
 	state.tracesL = traces
+	state.node = node
 
 	now := time.Now().Format("15:04:05")
 	state.labels = append(state.labels, now)
@@ -427,6 +547,35 @@ func refresh() {
 	state.mu.Unlock()
 }
 
+// autoDetectLinks generates links for all services with traefik labels
+func autoDetectLinks(svcs []Service) []Link {
+	var links []Link
+	links = append(links, Link{"/jaeger", "Jaeger UI"})
+
+	hasProm := false
+	for _, s := range svcs {
+		if s.Name == "prometheus" {
+			hasProm = true
+		}
+	}
+	if hasProm {
+		links = append(links, Link{"/api/prometheus/targets", "Prometheus"})
+	}
+	links = append(links, Link{"https://github.com/asepharyana/asepharyana-hub", "GitHub"})
+
+	// auto-generate links for services with traefik labels
+	domains := []string{"asepharyana.my.id", "asepharyana.web.id"}
+	for _, s := range svcs {
+		if s.HasWeb && s.State == "running" {
+			for _, d := range domains {
+				links = append(links, Link{fmt.Sprintf("https://%s.%s", s.Name, d), s.Name})
+				break // one link per service
+			}
+		}
+	}
+	return links
+}
+
 // ── Dashboard Handler ──
 
 func dashboard(w http.ResponseWriter, _ *http.Request) {
@@ -438,37 +587,52 @@ func dashboard(w http.ResponseWriter, _ *http.Request) {
 	ers := append([]float64{}, state.errs...)
 	trc := append([]float64{}, state.traces...)
 	labels := append([]string{}, state.labels...)
+	node := state.node
 	state.mu.Unlock()
 
-	running, down, otel := 0, 0, 0
+	running, degraded := 0, 0
 	for _, s := range svcs {
-		switch s.State {
-		case "running":
+		if s.State == "running" {
 			running++
-		case "jaeger":
-			otel++
-		default:
-			down++
+		} else {
+			degraded++
 		}
 	}
 
-	maxLat := 0.0
-	for _, v := range lat {
-		if v > maxLat {
-			maxLat = v
-		}
+	cpuColor, ramColor, diskColor := "#3fb950", "#3fb950", "#3fb950"
+	if node.CPU > 80 {
+		cpuColor = "#f85149"
+	} else if node.CPU > 60 {
+		cpuColor = "#d29922"
+	}
+	if node.RAM > 80 {
+		ramColor = "#f85149"
+	} else if node.RAM > 60 {
+		ramColor = "#d29922"
+	}
+	if node.Disk > 80 {
+		diskColor = "#f85149"
+	} else if node.Disk > 60 {
+		diskColor = "#d29922"
 	}
 
 	data := DashboardData{
-		Services: svcs, Running: running, Down: down, OTelOnly: otel,
+		Services: svcs, Running: running, Degraded: degraded,
 		TraceCount: len(tr), RPS: rps, Latency: lat, Errors: ers,
 		TraceVolume: trc, TraceList: tr, Labels: labels,
-		SystemName: "asepharyana-hub", TotalUp: running, TotalDown: down + otel,
-		HealthSVG:  template.HTML(svgDonut(running, down, otel)),
-		RPSSVG:     template.HTML(svgLine(rps, "#58a6ff")),
-		LatencySVG: template.HTML(svgLine(lat, "#bc8cff")),
-		ErrorSVG:   template.HTML(svgLine(ers, "#f85149")),
-		TraceSVG:   template.HTML(svgLine(trc, "#3fb950")),
+		SystemName: composeProject, TotalUp: running, TotalDown: degraded,
+		Links:       autoDetectLinks(svcs),
+		HasOTelData: len(rps) > 0 || len(lat) > 0 || len(tr) > 0,
+		HasNodeData: node.Online,
+		Node:        node,
+		HealthSVG:   template.HTML(svgDonut(running, degraded)),
+		RPSSVG:      template.HTML(svgLine(rps, "#58a6ff")),
+		LatencySVG:  template.HTML(svgLine(lat, "#bc8cff")),
+		ErrorSVG:    template.HTML(svgLine(ers, "#f85149")),
+		TraceSVG:    template.HTML(svgLine(trc, "#3fb950")),
+		CPUSVG:      template.HTML(svgGauge(node.CPU, cpuColor, "CPU Usage", "%")),
+		RAMSVG:      template.HTML(svgGauge(node.RAM, ramColor, "Memory Usage", "%")),
+		DiskSVG:     template.HTML(svgGauge(node.Disk, diskColor, "Disk Usage", "%")),
 	}
 
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")

@@ -56,6 +56,23 @@ services:
       - ../../infra/otel/prometheus.yml:/etc/prometheus/prometheus.yml:ro
       - /prometheus
 
+  # ── Node Exporter (Host Metrics: CPU, RAM, Disk) ──
+  node-exporter:
+    container_name: node-exporter
+    image: prom/node-exporter:latest
+    restart: always
+    networks:
+      app-shared-net:
+        aliases:
+          - node-exporter
+    command:
+      - '--web.listen-address=0.0.0.0:9100'
+      - '--path.rootfs=/host'
+      - '--path.procfs=/host/proc'
+      - '--path.sysfs=/host/sys'
+    volumes:
+      - /:/host:ro,rslave
+
   # ── Custom Dashboard (nginx:alpine) ──
   dashboard:
     container_name: dashboard
