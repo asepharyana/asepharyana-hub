@@ -54,7 +54,7 @@ services:
       - '--web.enable-lifecycle'
     volumes:
       - ../../infra/otel/prometheus.yml:/etc/prometheus/prometheus.yml:ro
-      - prometheus_data:/prometheus
+      - /prometheus
 
   # ── Custom Dashboard (nginx:alpine) ──
   dashboard:
@@ -77,9 +77,6 @@ services:
         condition: service_started
       otel-collector:
         condition: service_started
-
-volumes:
-  prometheus_data:
 
 networks:
   app-shared-net:
