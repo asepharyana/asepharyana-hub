@@ -1,6 +1,11 @@
-FROM nginx:alpine
-# Replace default nginx.conf with our custom config (runs as root for Docker socket access)
-COPY infra/dashboard/nginx.conf /etc/nginx/nginx.conf
-COPY infra/dashboard/index.html /usr/share/nginx/html/index.html
+# ── Build stage ──
+FROM golang:1.24-alpine AS builder
+WORKDIR /build
+COPY infra/dashboard/ ./
+RUN CGO_ENABLED=0 go build -ldflags="-s -w" -o dashboard .
+
+# ── Runtime (scratch — ~7MB total) ──
+FROM scratch
+COPY --from=builder /build/dashboard /dashboard
 EXPOSE 8080
-CMD ["nginx", "-g", "daemon off;"]
+CMD ["/dashboard"]

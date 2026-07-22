@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Hub Dashboard</title>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#0d1117;color:#e6edf3;line-height:1.5}
+
+  .header{display:flex;justify-content:space-between;align-items:center;padding:14px 24px;border-bottom:1px solid #30363d;background:#161b22;position:sticky;top:0;z-index:100}
+  .hl{display:flex;align-items:center;gap:12px}
+  .hl .logo{width:30px;height:30px;border-radius:7px;background:linear-gradient(135deg,#58a6ff,#bc8cff);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;color:#fff}
+  .hl h1{font-size:17px;font-weight:600}
+  .hl .sub{color:#8b949e;font-size:12px}
+  .hr{display:flex;align-items:center;gap:14px}
+  .hb{display:flex;align-items:center;gap:6px;font-size:12px;padding:4px 14px;border-radius:20px;font-weight:500}
+  .hb.g{background:rgba(63,185,80,0.12);color:#3fb950}
+  .hb.y{background:rgba(210,153,34,0.12);color:#d29922}
+  .hb.r{background:rgba(248,81,73,0.12);color:#f85149}
+  .hb .dot{width:8px;height:8px;border-radius:50%}
+  .hb.g .dot{background:#3fb950}
+  .hb.y .dot{background:#d29922}
+  .hb.r .dot{background:#f85149}
+  .upd{color:#6e7681;font-size:11px}
+
+  .c{max-width:1440px;margin:0 auto;padding:16px 24px}
+  .g{display:grid;gap:14px;grid-template-columns:repeat(12,1fr)}
+
+  .card{background:#161b22;border:1px solid #30363d;border-radius:8px;padding:16px}
+  .ch{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
+  .ch h2{font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:0.06em;color:#8b949e}
+  .ch .b{font-size:10px;background:#1c2333;padding:2px 10px;border-radius:10px;color:#8b949e}
+
+  .sg{display:grid;gap:5px;grid-template-columns:repeat(auto-fill,minmax(150px,1fr))}
+  .st{display:flex;align-items:center;gap:7px;padding:7px 9px;border:1px solid #30363d;border-radius:6px;font-size:12px;transition:all .15s}
+  .st:hover{background:#1c2333}
+  .st .i{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+  .st .i.g{background:#3fb950}
+  .st .i.r{background:#f85149}
+  .st .i.y{background:#d29922}
+  .st .i.b{background:#58a6ff}
+  .st .n{font-family:'SF Mono','Fira Code',monospace;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+  .sg2{display:grid;grid-template-columns:1fr 1fr;gap:7px}
+  .sb{background:#1c2333;border-radius:6px;padding:12px 8px;text-align:center}
+  .sv{font-size:22px;font-weight:700;font-family:'SF Mono',monospace}
+  .sl{font-size:10px;color:#8b949e;margin-top:2px;text-transform:uppercase;letter-spacing:.04em}
+  .sv.a{color:#58a6ff}.sv.g{color:#3fb950}.sv.r{color:#f85149}.sv.y{color:#d29922}
+
+  .links{display:flex;flex-wrap:wrap;gap:5px}
+  .links a{color:#58a6ff;text-decoration:none;font-size:11px;padding:4px 10px;border:1px solid #30363d;border-radius:6px;transition:all .15s}
+  .links a:hover{background:#1c2333;border-color:#58a6ff}
+
+  .tl{list-style:none}
+  .ti{padding:7px 0;border-bottom:1px solid #30363d;font-size:12px;display:flex;justify-content:space-between;align-items:center}
+  .ti:last-child{border-bottom:none}
+  .tl .ts{font-weight:500}
+  .tl .to{color:#8b949e;font-size:11px;font-family:'SF Mono','Fira Code',monospace;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:280px}
+  .tt{display:flex;gap:10px;font-size:11px;color:#8b949e;flex-shrink:0;align-items:center}
+  .td{font-family:'SF Mono',monospace;font-weight:500;color:#58a6ff}
+  .te{color:#f85149}
+
+  .chart{display:flex;justify-content:center}
+  .no-data{text-align:center;padding:30px 0;color:#6e7681;font-size:13px}
+
+  .em{text-align:center;padding:20px;color:#6e7681;font-size:12px}
+
+  @media(max-width:900px){
+    .g{grid-template-columns:1fr}
+    .sg2{grid-template-columns:1fr 1fr}
+    .sg{grid-template-columns:repeat(auto-fill,minmax(120px,1fr))}
+    .header{flex-direction:column;align-items:flex-start;gap:8px}
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="hl">
+    <div class="logo">H</div>
+    <div>
+      <h1>{{.SystemName}}</h1>
+      <div class="sub">System Dashboard</div>
+    </div>
+  </div>
+  <div class="hr">
+    {{if eq .TotalDown 0}}
+    <span class="hb g"><span class="dot"></span> All Systems Operational</span>
+    {{else if lt .TotalDown 3}}
+    <span class="hb y"><span class="dot"></span> {{.TotalDown}} degraded</span>
+    {{else}}
+    <span class="hb r"><span class="dot"></span> {{.TotalDown}} services down</span>
+    {{end}}
+    <span class="upd" id="ts"></span>
+  </div>
+</div>
+
+<div class="c">
+<div class="g">
+
+  <!-- Services -->
+  <div class="card" style="grid-column:span 4">
+    <div class="ch"><h2>Services</h2><span class="b">{{len .Services}}</span></div>
+    <div class="sg">
+      {{range .Services}}
+      <div class="st">
+        <span class="i {{if eq .State "running"}}g{{else if eq .State "jaeger"}}b{{else}}r{{end}}"></span>
+        <span class="n">{{.Name}}</span>
+      </div>
+      {{else}}
+      <div class="em">No services found</div>
+      {{end}}
+    </div>
+  </div>
+
+  <!-- Overview -->
+  <div class="card" style="grid-column:span 2">
+    <div class="ch"><h2>Overview</h2></div>
+    <div class="sg2">
+      <div class="sb"><div class="sv a">{{len .Services}}</div><div class="sl">Total</div></div>
+      <div class="sb"><div class="sv a">{{.Running}}</div><div class="sl">Healthy</div></div>
+      <div class="sb"><div class="sv g">{{if .Traces}}{{printf "%.0f" (index .Traces (sub (len .Traces) 1))}}{{else}}0{{end}}</div><div class="sl">Traces</div></div>
+      <div class="sb"><div class="sv r">{{if .Errors}}{{printf "%.0f" (index .Errors (sub (len .Errors) 1))}}{{else}}0{{end}}</div><div class="sl">Errors</div></div>
+    </div>
+  </div>
+
+  <!-- Health Donut (server-side SVG) -->
+  <div class="card" style="grid-column:span 3">
+    <div class="ch"><h2>Health</h2></div>
+    <div class="chart">{{.HealthSVG}}</div>
+  </div>
+
+  <!-- Quick Links -->
+  <div class="card" style="grid-column:span 3">
+    <div class="ch"><h2>Links</h2></div>
+    <div class="links">
+      <a href="/jaeger" target="_blank">Jaeger UI</a>
+      <a href="/api/prometheus/targets" target="_blank">Prometheus</a>
+      <a href="https://github.com/asepharyana/asepharyana-hub" target="_blank">GitHub</a>
+      {{$domain := "asepharyana.my.id"}}
+      {{range .Services}}
+        {{if and (ne .Name "jaeger") (ne .Name "traefik") (ne .Name "dashboard") (ne .Name "redis") (ne .Name "nats") (ne .Name "prometheus") (ne .Name "otel-collector") (not (hasSuffix .Name "-dapr"))}}
+        <a href="https://{{.Name}}.{{$domain}}" target="_blank">{{.Name}}</a>
+        {{end}}
+      {{end}}
+    </div>
+  </div>
+
+  <!-- Request Rate -->
+  <div class="card" style="grid-column:span 4">
+    <div class="ch"><h2>Request Rate</h2><span class="b">{{if .RPS}}{{printf "%.1f" (index .RPS (sub (len .RPS) 1))}}/s{{else}}-{{end}}</span></div>
+    <div class="chart">{{.RPSSVG}}</div>
+  </div>
+
+  <!-- Latency -->
+  <div class="card" style="grid-column:span 4">
+    <div class="ch"><h2>Latency</h2><span class="b">{{if .Latency}}{{printf "%.0f" (index .Latency (sub (len .Latency) 1))}}ms{{else}}-{{end}}</span></div>
+    <div class="chart">{{.LatencySVG}}</div>
+  </div>
+
+  <!-- Error Rate -->
+  <div class="card" style="grid-column:span 4">
+    <div class="ch"><h2>Error Rate</h2><span class="b">{{if .Errors}}{{printf "%.1f" (index .Errors (sub (len .Errors) 1))}}/s{{else}}-{{end}}</span></div>
+    <div class="chart">{{.ErrorSVG}}</div>
+  </div>
+
+  <!-- Trace Volume -->
+  <div class="card" style="grid-column:span 6">
+    <div class="ch"><h2>Trace Volume</h2><span class="b">{{.TraceCount}} traces</span></div>
+    <div class="chart">{{.TraceSVG}}</div>
+  </div>
+
+  <!-- Recent Traces -->
+  <div class="card" style="grid-column:span 6">
+    <div class="ch"><h2>Recent Traces</h2><span class="b">{{.TraceCount}}</span></div>
+    <div class="tl">
+      {{if .Traces}}
+      <div id="tl">
+      {{range .Traces}}
+      <div class="ti">
+        <div>
+          <div class="ts">{{.Service}}</div>
+          <div class="to">{{.Operation}}</div>
+        </div>
+        <div class="tt">
+          <span class="td">{{safeDur .Duration}}</span>
+          <span>{{.Spans}} spans</span>
+          {{if .HasError}}<span class="te">error</span>{{end}}
+        </div>
+      </div>
+      {{end}}
+      </div>
+      {{else}}
+      <div class="em">No traces in the last 5 minutes</div>
+      {{end}}
+    </div>
+  </div>
+
+</div>
+</div>
+
+<script>
+// Auto-refresh every 15s (no JS charts — server-side SVGs)
+function refresh() {
+  fetch('/', {headers:{'X-Requested-With':'XMLHttpRequest'}})
+    .then(r => r.text())
+    .then(html => {
+      document.open();
+      document.write(html);
+      document.close();
+    })
+    .catch(() => {});
+}
+document.getElementById('ts').textContent = 'updated ' + new Date().toLocaleTimeString();
+setInterval(() => { document.getElementById('ts').textContent = 'updated ' + new Date().toLocaleTimeString(); }, 1000);
+setTimeout(() => location.reload(), 15000);
+</script>
+</body>
+</html>
