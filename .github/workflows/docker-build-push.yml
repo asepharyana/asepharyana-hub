@@ -34,6 +34,7 @@ jobs:
     outputs:
       matrix: ${{ steps.set-matrix.outputs.matrix }}
       scraper-api: ${{ steps.filter.outputs['scraper-api'] == 'true' || steps.dispatch.outputs['scraper-api'] == 'true' || github.event_name == 'workflow_dispatch' }}
+      dashboard: ${{ steps.filter.outputs['dashboard'] == 'true' || steps.dispatch.outputs['dashboard'] == 'true' || github.event_name == 'workflow_dispatch' }}
     steps:
       - uses: actions/checkout@v6
         with:
