@@ -60,7 +60,7 @@ jobs:
           }
 
           echo "scraper-api=$(changed '^(apps/scraper(/|$)|\.github/workflows/docker-build-push\.yml$|infra/docker/scraper\.Dockerfile$)')" >> "$GITHUB_OUTPUT"
-          echo "dashboard=$(changed '^(infra/dashboard/(/|$)|\.github/workflows/docker-build-push\.yml$|infra/docker/dashboard\.Dockerfile$)')" >> "$GITHUB_OUTPUT"
+          echo "dashboard=$(changed '^(infra/dashboard(/|$)|\.github/workflows/docker-build-push\.yml$|infra/docker/dashboard\.Dockerfile$)')" >> "$GITHUB_OUTPUT"
 
       - name: Parse repository_dispatch payload
         id: dispatch
