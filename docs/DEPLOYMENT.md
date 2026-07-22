@@ -600,6 +600,73 @@ docker system prune -a -f
 
 ---
 
+---
+
+## Proyek Ini: asepharyana-hub
+
+> Dokumentasi spesifik untuk repo ini. Lihat juga [ADR-0002](adr/0002-env-file-via-github-secret.md).
+
+### Topologi
+
+| Host | IP | Peran |
+|------|----|-------|
+| `orangevps` (VPS) | `45.127.35.244` | Docker host: Traefik, scraper-api, Redis, NATS, Dapr |
+| `imrnes` (bare-metal) | `100.121.180.82` (Tailscale) | PostgreSQL (port 6432), Redis (port 6379) |
+
+### Environment Variables
+
+**Production `.env` tidak pernah di-commit.** File ini disimpan sebagai GitHub secret `ENV_FILE_PRODUCTION` dan di-SCP ke VPS saat deploy via `deploy-docker.yml`.
+
+Cara update:
+```bash
+# Baca current .env dari VPS
+ssh root@45.127.35.244 "cat /root/asepharyana-hub/.env"
+
+# Update GitHub secret (dari output di atas)
+cat > /tmp/env-updated << 'EOF'
+<paste content, edit, lalu>
+EOF
+cat /tmp/env-updated | gh secret set ENV_FILE_PRODUCTION --repo asepharyana/asepharyana-hub
+```
+
+**Jangan manual edit `.env` di VPS tanpa update GitHub secret juga** — nanti ke- overwrite pas deploy berikutnya.
+
+### Database
+
+| Variable | Value |
+|----------|-------|
+| `DATABASE_URL` | `postgres://asephs:hunterz@100.121.180.82:6432/hub` |
+| `REDIS_URL` | `redis://redis:6379` (Docker network) |
+
+### Kompose
+
+Proyek compose bernama `compose`, terdiri dari 5 file yang selalu di-include bersamaan:
+
+```bash
+/root/asepharyana-hub/infra/compose/
+├── traefik.yml     # Reverse proxy
+├── shared.yml      # Redis
+├── nats.yml        # NATS
+├── dapr.yml        # Dapr placement
+└── scraper.yml     # Scraper API
+```
+
+Perintah restart setelah update `.env` di VPS:
+```bash
+cd /root/asepharyana-hub
+docker compose \
+  -p compose \
+  --env-file .env \
+  -f infra/compose/traefik.yml \
+  -f infra/compose/shared.yml \
+  -f infra/compose/scraper.yml \
+  -f infra/compose/nats.yml \
+  -f infra/compose/dapr.yml \
+  up -d --remove-orphans
+```
+
+---
+
 ## Checklist Deploy Proyek Baru
 
 1. [ ] Dockerfile ditest lokal (`docker build`, `docker run`)
