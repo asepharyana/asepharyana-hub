@@ -31,7 +31,7 @@ asepharyana-hub/
 - Semua service join **`app-shared-net`** (external Docker bridge)
 - Service discovery via Docker DNS (container alias)
 - Traefik sebagai ingress untuk HTTP/S eksternal
-- Tailscale untuk cross-VPS (PostgreSQL, Redis, browserless di `imrnes`)
+- Tailscale untuk cross-VPS (PostgreSQL, Redis)
 
 ### Compose File Pattern
 ```yaml

@@ -24,7 +24,7 @@ services:
       - REDIS_URL=redis://redis:6379
       - JWT_SECRET=${JWT_SECRET:?JWT_SECRET is required}
       - DATABASE_URL=${DATABASE_URL}
-      - EXTERNAL_BROWSERLESS_WS=ws://100.121.180.82:3001
+
 
   scraper-api-dapr:
     container_name: scraper-api-dapr
