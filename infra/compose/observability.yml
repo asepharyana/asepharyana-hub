@@ -76,7 +76,7 @@ services:
   # ── Custom Dashboard (nginx:alpine) ──
   dashboard:
     container_name: dashboard
-    image: ghcr.io/asepharyana/asepharyana-hub/dashboard:sha-6c24508
+    image: ghcr.io/asepharyana/asepharyana-hub/dashboard:sha-9a48a49
     build:
       context: ../..
       dockerfile: infra/docker/dashboard.Dockerfile
