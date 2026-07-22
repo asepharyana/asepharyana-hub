@@ -52,25 +52,26 @@ type Trace struct {
 }
 
 type DashboardData struct {
-	Services    []Service
-	Running     int
-	Down        int
-	OTelOnly    int
-	TraceCount  int
-	RPS         []float64
-	Latency     []float64
-	Errors      []float64
-	Traces      []float64
-	Labels      []string
-	HealthSVG   template.HTML
-	RPSSVG      template.HTML
-	LatencySVG  template.HTML
-	ErrorSVG    template.HTML
-	TraceSVG    template.HTML
-	SystemName  string
-	Error       string
-	TotalUp     int
-	TotalDown   int
+	Services     []Service
+	Running      int
+	Down         int
+	OTelOnly     int
+	TraceCount   int
+	RPS          []float64
+	Latency      []float64
+	Errors       []float64
+	TraceVolume  []float64
+	TraceList    []Trace
+	Labels       []string
+	HealthSVG    template.HTML
+	RPSSVG       template.HTML
+	LatencySVG   template.HTML
+	ErrorSVG     template.HTML
+	TraceSVG     template.HTML
+	SystemName   string
+	Error        string
+	TotalUp      int
+	TotalDown    int
 }
 
 // ── State ──
@@ -125,6 +126,7 @@ func fetchServices() []Service {
 	var raw []struct {
 		Names            []string `json:"Names"`
 		State            string   `json:"State"`
+		Labels           map[string]string `json:"Labels"`
 		NetworkSettings *struct {
 			Networks map[string]any `json:"Networks"`
 		} `json:"NetworkSettings"`
@@ -136,7 +138,10 @@ func fetchServices() []Service {
 	for _, c := range raw {
 		if c.NetworkSettings != nil {
 			if _, ok := c.NetworkSettings.Networks["app-shared-net"]; ok {
-				svcs = append(svcs, Service{Name: strings.TrimPrefix(c.Names[0], "/"), State: c.State})
+				// Only include containers from the hub compose project
+				if c.Labels["com.docker.compose.project"] == "compose" {
+					svcs = append(svcs, Service{Name: strings.TrimPrefix(c.Names[0], "/"), State: c.State})
+				}
 			}
 		}
 	}
@@ -456,7 +461,8 @@ func dashboard(w http.ResponseWriter, _ *http.Request) {
 
 	data := DashboardData{
 		Services: svcs, Running: running, Down: down, OTelOnly: otel,
-		TraceCount: len(tr), RPS: rps, Latency: lat, Errors: ers, Traces: trc, Labels: labels,
+		TraceCount: len(tr), RPS: rps, Latency: lat, Errors: ers,
+		TraceVolume: trc, TraceList: tr, Labels: labels,
 		SystemName: "asepharyana-hub", TotalUp: running, TotalDown: down + otel,
 		HealthSVG:  template.HTML(svgDonut(running, down, otel)),
 		RPSSVG:     template.HTML(svgLine(rps, "#58a6ff")),

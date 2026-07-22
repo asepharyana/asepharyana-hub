@@ -120,7 +120,7 @@
     <div class="sg2">
       <div class="sb"><div class="sv a">{{len .Services}}</div><div class="sl">Total</div></div>
       <div class="sb"><div class="sv a">{{.Running}}</div><div class="sl">Healthy</div></div>
-      <div class="sb"><div class="sv g">{{if .Traces}}{{printf "%.0f" (index .Traces (sub (len .Traces) 1))}}{{else}}0{{end}}</div><div class="sl">Traces</div></div>
+      <div class="sb"><div class="sv g">{{if .TraceVolume}}{{printf "%.0f" (index .TraceVolume (sub (len .TraceVolume) 1))}}{{else}}0{{end}}</div><div class="sl">Traces</div></div>
       <div class="sb"><div class="sv r">{{if .Errors}}{{printf "%.0f" (index .Errors (sub (len .Errors) 1))}}{{else}}0{{end}}</div><div class="sl">Errors</div></div>
     </div>
   </div>
@@ -175,9 +175,9 @@
   <div class="card" style="grid-column:span 6">
     <div class="ch"><h2>Recent Traces</h2><span class="b">{{.TraceCount}}</span></div>
     <div class="tl">
-      {{if .Traces}}
+      {{if .TraceList}}
       <div id="tl">
-      {{range .Traces}}
+      {{range .TraceList}}
       <div class="ti">
         <div>
           <div class="ts">{{.Service}}</div>
