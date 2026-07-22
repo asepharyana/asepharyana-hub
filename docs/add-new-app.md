@@ -67,6 +67,8 @@ Tambah di `infra/compose/<nama-app>.yml`:
         condition: service_healthy
       nats:
         condition: service_healthy
+      otel-collector:
+        condition: service_started
     networks:
       - app-shared-net
     command:
@@ -76,18 +78,21 @@ Tambah di `infra/compose/<nama-app>.yml`:
       - '--dapr-http-port=3500'
       - '--dapr-grpc-port=50001'
       - '--placement-host-address=dapr-placement:50005'
-      - '--components-path=/components'
+      - '--config=/dapr/config.yaml'
+      - '--resources-path=/dapr/components'
     volumes:
-      - ../../infra/dapr/components:/components
+      - ../../infra/dapr:/dapr:ro
 ```
 
-Pastikan juga app container punya `depends_on` ke dapr-placement dan nats:
+Pastikan juga app container punya `depends_on` ke dapr-placement, nats, dan otel-collector:
 ```yaml
     depends_on:
       dapr-placement:
         condition: service_healthy
       nats:
         condition: service_healthy
+      otel-collector:
+        condition: service_started
 ```
 
 ## 4. Tambahkan route Traefik

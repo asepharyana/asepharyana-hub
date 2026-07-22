@@ -254,9 +254,11 @@ jobs:
 
           declare -A SERVICES
           SERVICES["scraper-api"]="scraper.yml"
+          SERVICES["dashboard"]="observability.yml"
 
           declare -A PATHS
           PATHS["scraper-api"]="apps/scraper"
+          PATHS["dashboard"]="infra/dashboard"
 
           # Use git config for possible commits
           git config --local user.email "action@github.com"
@@ -265,6 +267,7 @@ jobs:
           for id in "${!SERVICES[@]}"; do
             SHOULD_HAVE_RUN=false
             if [ "${{ needs.changes.outputs['scraper-api'] }}" == "true" ] && [ "$id" == "scraper-api" ]; then SHOULD_HAVE_RUN=true; fi
+            if [ "${{ needs.changes.outputs['dashboard'] }}" == "true" ] && [ "$id" == "dashboard" ]; then SHOULD_HAVE_RUN=true; fi
 
             if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then SHOULD_HAVE_RUN=true; fi
 

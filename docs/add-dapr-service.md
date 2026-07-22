@@ -40,6 +40,15 @@ services:
         condition: service_healthy
     networks:
       - app-shared-net
+    depends_on:
+      dapr-placement:
+        condition: service_healthy
+      nats:
+        condition: service_healthy
+      otel-collector:
+        condition: service_started
+    networks:
+      - app-shared-net
     command:
       - './daprd'
       - '--app-id=app'
@@ -47,9 +56,10 @@ services:
       - '--dapr-http-port=3500'
       - '--dapr-grpc-port=50001'
       - '--placement-host-address=dapr-placement:50005'
-      - '--resources-path=/components'
+      - '--config=/dapr/config.yaml'
+      - '--resources-path=/dapr/components'
     volumes:
-      - ../../infra/dapr/components:/components
+      - ../../infra/dapr:/dapr:ro
 
 networks:
   app-shared-net:

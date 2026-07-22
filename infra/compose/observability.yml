@@ -16,9 +16,6 @@ services:
       - '--config=/etc/otel/config.yml'
     volumes:
       - ../../infra/otel/otel-collector-config.yml:/etc/otel/config.yml:ro
-    depends_on:
-      jaeger:
-        condition: service_started
 
   # ── Jaeger (Tracing Backend + Built-in UI) ──
   jaeger:
@@ -41,6 +38,7 @@ services:
   # ── Custom Dashboard (nginx:alpine) ──
   dashboard:
     container_name: dashboard
+    image: ghcr.io/asepharyana/asepharyana-hub/dashboard:latest
     build:
       context: ../..
       dockerfile: infra/docker/dashboard.Dockerfile
