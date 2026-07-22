@@ -20,16 +20,6 @@ http:
         - common-chain@file
       service: scraper-service
 
-    # ── Dashboard ──
-    dashboard:
-      rule: 'Host(`dashboard.asepharyana.my.id`) || Host(`status.asepharyana.my.id`) || Host(`dashboard.asepharyana.web.id`) || Host(`status.asepharyana.web.id`)'
-      entryPoints:
-        - websecure
-      tls: {}
-      middlewares:
-        - common-chain@file
-      service: dashboard-service
-
     # ── Jaeger UI ──
     jaeger:
       rule: 'Host(`jaeger.asepharyana.my.id`) || Host(`jaeger.asepharyana.web.id`)'
@@ -50,11 +40,6 @@ http:
       loadBalancer:
         servers:
           - url: 'http://scraper-api:4091'
-
-    dashboard-service:
-      loadBalancer:
-        servers:
-          - url: 'http://dashboard:8080'
 
     jaeger-service:
       loadBalancer:

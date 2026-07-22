@@ -73,28 +73,6 @@ services:
     volumes:
       - /:/host:ro,rslave
 
-  # ── Custom Dashboard (nginx:alpine) ──
-  dashboard:
-    container_name: dashboard
-    image: ghcr.io/asepharyana/asepharyana-hub/dashboard:sha-5999ac1
-    build:
-      context: ../..
-      dockerfile: infra/docker/dashboard.Dockerfile
-    restart: always
-    networks:
-      app-shared-net:
-        aliases:
-          - dashboard
-    ports:
-      - '8080:8080'
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock:ro
-    depends_on:
-      jaeger:
-        condition: service_started
-      otel-collector:
-        condition: service_started
-
 networks:
   app-shared-net:
     name: app-shared-net
