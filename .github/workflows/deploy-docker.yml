@@ -151,22 +151,28 @@ jobs:
               exit 1
             fi
 
-            # Construct compose arguments
+            # Always include ALL compose files for dependency resolution
+            COMPOSE_ARGS=""
+            for f in $ALL_COMPOSE_FILES; do
+              if [ -f "$f" ]; then
+                COMPOSE_ARGS="$COMPOSE_ARGS -f $f"
+              fi
+            done
+
             if [ -n "$TARGET_COMPOSE" ]; then
-              COMPOSE_ARGS=""
+              # Extract service names from target compose file(s) for selective up
+              TARGET_SERVICES=""
               for f in $TARGET_COMPOSE; do
                 if [ -f "$f" ]; then
-                  COMPOSE_ARGS="$COMPOSE_ARGS -f $f"
+                  svcs=$(grep -E '^\s{2}[a-zA-Z0-9_-]+:' "$f" | grep -v 'app-shared-net' | sed 's/://g' | xargs)
+                  TARGET_SERVICES="$TARGET_SERVICES $svcs"
                 fi
               done
-              UP_FLAGS="-d" # No --remove-orphans for selective updates to avoid killing other services
+              TARGET_SERVICES=$(echo "$TARGET_SERVICES" | xargs)  # trim whitespace
+              echo "🎯 Selective update for services: $TARGET_SERVICES"
             else
               echo "🚀 Performing full deployment of all services..."
-              COMPOSE_ARGS=""
-              for f in $ALL_COMPOSE_FILES; do
-                COMPOSE_ARGS="$COMPOSE_ARGS -f $f"
-              done
-              UP_FLAGS="-d --remove-orphans"
+              TARGET_SERVICES=""
             fi
 
             echo "📥 Pulling images for target services..."
@@ -175,7 +181,7 @@ jobs:
             # Retry pull up to 3 times to handle transient Docker attestation lease errors
             for attempt in 1 2 3; do
               echo "Pull attempt $attempt/3..."
-              if $COMPOSE_CMD $COMPOSE_ARGS --env-file .env pull; then
+              if $COMPOSE_CMD $COMPOSE_ARGS --env-file .env pull $TARGET_SERVICES; then
                 echo "✅ Pull succeeded on attempt $attempt"
                 PULL_SUCCESS=true
                 break
@@ -215,7 +221,11 @@ jobs:
             echo "🆙 Starting services..."
             echo "🔍 Debug: Current docker containers:"
             docker ps -a
-            $COMPOSE_CMD $COMPOSE_ARGS --env-file .env up $UP_FLAGS
+            if [ -n "$TARGET_SERVICES" ]; then
+              $COMPOSE_CMD $COMPOSE_ARGS --env-file .env up -d $TARGET_SERVICES
+            else
+              $COMPOSE_CMD $COMPOSE_ARGS --env-file .env up -d --remove-orphans
+            fi
 
             # ── Traefik reload ──
             if [ "${RELOAD_TRAEFIK:-false}" = "true" ]; then
