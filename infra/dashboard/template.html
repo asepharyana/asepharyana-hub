@@ -154,7 +154,7 @@
 
   <!-- System Resources (CPU / RAM / Disk) — auto muncul jika ada data -->
   {{if .HasNodeData}}
-  <div class="cd" style="grid-column:1/-1">
+  <div class="cd">
     <div class="ch"><h2>System Resources</h2>
       <span class="b">load: {{printf "%.2f" .Node.Load1}} {{printf "%.2f" .Node.Load5}} {{printf "%.2f" .Node.Load15}}</span>
     </div>
@@ -198,7 +198,7 @@
   </div>
 
   <!-- Recent Traces -->
-  <div class="cd" style="grid-column:1/-1">
+  <div class="cd">
     <div class="ch"><h2>Recent Traces</h2><span class="b">{{.TraceCount}}</span></div>
     {{if .TraceList}}
     <div class="tl">
