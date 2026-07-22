@@ -622,7 +622,7 @@ func dashboard(w http.ResponseWriter, _ *http.Request) {
 		TraceVolume: trc, TraceList: tr, Labels: labels,
 		SystemName: composeProject, TotalUp: running, TotalDown: degraded,
 		Links:       autoDetectLinks(svcs),
-		HasOTelData: len(rps) > 0 || len(lat) > 0 || len(tr) > 0,
+		HasOTelData: len(rps) > 0 || len(lat) > 0, // actual OTel collector metrics
 		HasNodeData: node.Online,
 		Node:        node,
 		HealthSVG:   template.HTML(svgDonut(running, degraded)),
