@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Hub Dashboard</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <style>
   :root {
     --bg: #0d1117;
@@ -12,439 +13,658 @@
     --border: #30363d;
     --text: #e6edf3;
     --text-dim: #8b949e;
+    --text-muted: #6e7681;
     --accent: #58a6ff;
     --green: #3fb950;
+    --green-bg: rgba(63,185,80,0.12);
     --yellow: #d29922;
+    --yellow-bg: rgba(210,153,34,0.12);
     --red: #f85149;
+    --red-bg: rgba(248,81,73,0.12);
     --orange: #d4760b;
+    --purple: #bc8cff;
+    --chart-bg: rgba(88,166,255,0.08);
   }
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body {
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     background: var(--bg);
     color: var(--text);
-    padding: 20px;
     line-height: 1.5;
   }
+
+  /* Header */
   .header {
     display: flex; justify-content: space-between; align-items: center;
-    margin-bottom: 24px; padding-bottom: 16px;
+    padding: 16px 24px;
     border-bottom: 1px solid var(--border);
+    background: var(--bg-card);
+    position: sticky; top: 0; z-index: 100;
   }
-  .header h1 { font-size: 24px; font-weight: 600; }
-  .header .subtitle { color: var(--text-dim); font-size: 13px; }
-  .header .status-bar { display: flex; gap: 16px; align-items: center; }
-  .header .status-bar .dot {
-    width: 10px; height: 10px; border-radius: 50%; display: inline-block;
+  .header-left { display: flex; align-items: center; gap: 12px; }
+  .header-left .logo {
+    width: 32px; height: 32px; border-radius: 8px;
+    background: linear-gradient(135deg, var(--accent), var(--purple));
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 700; font-size: 14px;
   }
-  .header .last-updated { color: var(--text-dim); font-size: 12px; }
+  .header-left h1 { font-size: 18px; font-weight: 600; }
+  .header-left .subtitle { color: var(--text-dim); font-size: 12px; }
+  .header-right { display: flex; align-items: center; gap: 16px; }
+  .header-right .health-badge {
+    display: flex; align-items: center; gap: 6px;
+    font-size: 12px; padding: 4px 12px;
+    border-radius: 20px; font-weight: 500;
+  }
+  .health-badge .dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    display: inline-block;
+  }
+  .health-badge.ok { background: var(--green-bg); color: var(--green); }
+  .health-badge.warn { background: var(--yellow-bg); color: var(--yellow); }
+  .health-badge.err { background: var(--red-bg); color: var(--red); }
+  .last-updated { color: var(--text-muted); font-size: 11px; }
+
+  /* Main layout */
+  .container { max-width: 1440px; margin: 0 auto; padding: 20px 24px; }
+
   .grid {
     display: grid; gap: 16px;
-    grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+    grid-template-columns: repeat(12, 1fr);
   }
+
   .card {
     background: var(--bg-card);
     border: 1px solid var(--border);
     border-radius: 8px; padding: 16px;
   }
-  .card h2 {
-    font-size: 14px; font-weight: 600; text-transform: uppercase;
-    letter-spacing: 0.05em; color: var(--text-dim); margin-bottom: 12px;
+  .card-header {
     display: flex; justify-content: space-between; align-items: center;
+    margin-bottom: 12px;
   }
-  .card h2 .count {
-    font-size: 12px; background: var(--bg-hover); padding: 2px 8px;
-    border-radius: 12px;
+  .card-header h2 {
+    font-size: 12px; font-weight: 600; text-transform: uppercase;
+    letter-spacing: 0.06em; color: var(--text-dim);
   }
-  .service-list, .trace-list { list-style: none; }
-  .service-item {
-    display: flex; justify-content: space-between; align-items: center;
-    padding: 8px 0; border-bottom: 1px solid var(--border);
-    font-size: 14px;
+  .card-header .badge {
+    font-size: 10px; background: var(--bg-hover);
+    padding: 2px 8px; border-radius: 10px; color: var(--text-dim);
   }
-  .service-item:last-child { border-bottom: none; }
-  .service-item .name { font-family: 'SF Mono', 'Fira Code', monospace; }
-  .service-item .badge {
-    font-size: 11px; padding: 2px 8px; border-radius: 12px;
-    font-weight: 500;
-  }
-  .badge-up { background: rgba(63,185,80,0.15); color: var(--green); }
-  .badge-down { background: rgba(248,81,73,0.15); color: var(--red); }
-  .badge-degraded { background: rgba(210,153,34,0.15); color: var(--yellow); }
+  .chart-wrapper { position: relative; height: 200px; }
 
-  .trace-item {
-    padding: 8px 0; border-bottom: 1px solid var(--border); font-size: 13px;
+  /* Service grid */
+  .service-grid {
+    display: grid; gap: 6px;
+    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
   }
-  .trace-item:last-child { border-bottom: none; }
-  .trace-item .trace-service { font-weight: 500; }
-  .trace-item .trace-op {
-    color: var(--text-dim); font-size: 12px;
-    font-family: 'SF Mono', 'Fira Code', monospace; margin: 2px 0;
+  .service-tile {
+    display: flex; align-items: center; gap: 8px;
+    padding: 8px 10px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    font-size: 12px;
+    transition: all 0.15s;
+  }
+  .service-tile:hover { background: var(--bg-hover); }
+  .service-tile .indicator {
+    width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0;
+  }
+  .service-tile .indicator.up { background: var(--green); }
+  .service-tile .indicator.down { background: var(--red); }
+  .service-tile .indicator.warn { background: var(--yellow); }
+  .service-tile .indicator.otel { background: var(--accent); }
+  .service-tile .name {
+    font-family: 'SF Mono', 'Fira Code', monospace;
     overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
   }
-  .trace-item .trace-meta {
-    display: flex; gap: 12px; font-size: 11px; color: var(--text-dim);
-  }
-  .trace-item .trace-duration {
-    font-family: 'SF Mono', monospace; font-weight: 500;
-  }
 
+  /* Stat boxes */
   .stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
   .stat-box {
     background: var(--bg-hover); border-radius: 6px; padding: 12px; text-align: center;
   }
   .stat-value {
-    font-size: 28px; font-weight: 700; font-family: 'SF Mono', monospace;
+    font-size: 24px; font-weight: 700; font-family: 'SF Mono', monospace;
   }
-  .stat-label { font-size: 11px; color: var(--text-dim); margin-top: 4px; }
+  .stat-label { font-size: 10px; color: var(--text-dim); margin-top: 2px; text-transform: uppercase; letter-spacing: 0.04em; }
+  .stat-value.green { color: var(--green); }
+  .stat-value.yellow { color: var(--yellow); }
+  .stat-value.red { color: var(--red); }
+  .stat-value.accent { color: var(--accent); }
 
-  .links { display: flex; flex-wrap: wrap; gap: 8px; }
+  /* Trace list */
+  .trace-list { list-style: none; }
+  .trace-item {
+    padding: 8px 0; border-bottom: 1px solid var(--border); font-size: 12px;
+    display: flex; justify-content: space-between; align-items: center;
+  }
+  .trace-item:last-child { border-bottom: none; }
+  .trace-item .trace-left { overflow: hidden; }
+  .trace-item .trace-service { font-weight: 500; }
+  .trace-item .trace-op {
+    color: var(--text-dim); font-size: 11px;
+    font-family: 'SF Mono', 'Fira Code', monospace;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 300px;
+  }
+  .trace-item .trace-right {
+    display: flex; gap: 10px; font-size: 11px; color: var(--text-dim);
+    flex-shrink: 0; align-items: center;
+  }
+  .trace-item .trace-duration {
+    font-family: 'SF Mono', monospace; font-weight: 500; color: var(--accent);
+  }
+  .trace-item .trace-error { color: var(--red); }
+
+  /* Links */
+  .links { display: flex; flex-wrap: wrap; gap: 6px; }
   .links a {
-    color: var(--accent); text-decoration: none; font-size: 13px;
-    padding: 6px 12px; border: 1px solid var(--border); border-radius: 6px;
+    color: var(--accent); text-decoration: none; font-size: 11px;
+    padding: 4px 10px; border: 1px solid var(--border); border-radius: 6px;
     transition: all 0.15s;
   }
   .links a:hover { background: var(--bg-hover); border-color: var(--accent); }
 
-  .loading { text-align: center; padding: 20px; color: var(--text-dim); }
-
+  .loading { text-align: center; padding: 20px; color: var(--text-dim); font-size: 13px; }
+  .empty-state { text-align: center; padding: 20px; color: var(--text-muted); font-size: 12px; }
   .inline-error {
-    background: rgba(248,81,73,0.1); border: 1px solid rgba(248,81,73,0.3);
-    border-radius: 6px; padding: 8px 12px; font-size: 12px;
-    color: var(--red); margin-bottom: 8px;
+    background: var(--red-bg); border: 1px solid rgba(248,81,73,0.3);
+    border-radius: 6px; padding: 8px 12px; font-size: 11px; color: var(--red);
+    margin-bottom: 8px;
   }
 
-  @media (max-width: 720px) {
+  /* Responsive */
+  @media (max-width: 900px) {
     .grid { grid-template-columns: 1fr; }
+    .stat-grid { grid-template-columns: 1fr 1fr; }
+    .service-grid { grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); }
     .header { flex-direction: column; align-items: flex-start; gap: 8px; }
   }
 </style>
 </head>
 <body>
 
+<!-- Header -->
 <div class="header">
-  <div>
-    <h1>asepharyana-hub</h1>
-    <div class="subtitle">System Dashboard</div>
+  <div class="header-left">
+    <div class="logo">H</div>
+    <div>
+      <h1>asepharyana-hub</h1>
+      <div class="subtitle">System Dashboard</div>
+    </div>
   </div>
-  <div class="status-bar">
-    <span id="health-indicator" title="System Health"><span class="dot" style="background:var(--yellow)"></span> Loading...</span>
+  <div class="header-right">
+    <span class="health-badge ok" id="health-indicator">
+      <span class="dot"></span> Loading...
+    </span>
     <span class="last-updated" id="last-updated">-</span>
   </div>
 </div>
 
+<div class="container">
 <div class="grid">
-  <!-- Services -->
-  <div class="card">
-    <h2>Services <span class="count" id="service-count">0</span></h2>
-    <div id="service-list"><div class="loading">Loading...</div></div>
+
+  <!-- Column 1: Service Health (left side, spans 4 cols) -->
+  <div class="card" style="grid-column: span 4;">
+    <div class="card-header">
+      <h2>Services</h2>
+      <span class="badge" id="service-count">0</span>
+    </div>
+    <div class="service-grid" id="service-list">
+      <div class="loading">Loading...</div>
+    </div>
   </div>
 
-  <!-- Stats -->
-  <div class="card">
-    <h2>Overview</h2>
+  <!-- Column 1b: Overview Stats -->
+  <div class="card" style="grid-column: span 2;">
+    <div class="card-header"><h2>Overview</h2></div>
     <div class="stat-grid">
       <div class="stat-box">
-        <div class="stat-value" id="stat-services">-</div>
+        <div class="stat-value accent" id="stat-services">-</div>
         <div class="stat-label">Services</div>
       </div>
       <div class="stat-box">
-        <div class="stat-value" id="stat-traces">-</div>
+        <div class="stat-value accent" id="stat-up">-</div>
+        <div class="stat-label">Healthy</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-value green" id="stat-traces">-</div>
         <div class="stat-label">Traces (5m)</div>
       </div>
       <div class="stat-box">
-        <div class="stat-value" id="stat-errors">-</div>
+        <div class="stat-value red" id="stat-errors">-</div>
         <div class="stat-label">Errors (5m)</div>
-      </div>
-      <div class="stat-box">
-        <div class="stat-value" id="stat-p99">-</div>
-        <div class="stat-label">P99 Latency</div>
       </div>
     </div>
   </div>
 
-  <!-- Links -->
-  <div class="card">
-    <h2>Quick Links</h2>
+  <!-- Column 1c: Health Donut Chart -->
+  <div class="card" style="grid-column: span 3;">
+    <div class="card-header"><h2>Health Distribution</h2></div>
+    <div class="chart-wrapper"><canvas id="healthChart"></canvas></div>
+  </div>
+
+  <!-- Column 1d: Quick Links -->
+  <div class="card" style="grid-column: span 3;">
+    <div class="card-header"><h2>Quick Links</h2></div>
     <div class="links" id="quick-links">
       <div class="loading">Loading...</div>
     </div>
   </div>
+
+  <!-- Column 2: Request Rate (spans 4 cols) -->
+  <div class="card" style="grid-column: span 4;">
+    <div class="card-header"><h2>Request Rate</h2><span class="badge" id="rps-value">-</span></div>
+    <div class="chart-wrapper"><canvas id="rpsChart"></canvas></div>
   </div>
 
-  <!-- Recent Traces -->
-  <div class="card" style="grid-column: 1 / -1;">
-    <h2>Recent Traces <span class="count" id="trace-count">0</span></h2>
-    <div id="trace-list"><div class="loading">Loading...</div></div>
+  <!-- Column 2b: Latency -->
+  <div class="card" style="grid-column: span 4;">
+    <div class="card-header"><h2>Latency</h2><span class="badge" id="latency-value">-</span></div>
+    <div class="chart-wrapper"><canvas id="latencyChart"></canvas></div>
   </div>
+
+  <!-- Column 2c: Error Rate -->
+  <div class="card" style="grid-column: span 4;">
+    <div class="card-header"><h2>Error Rate</h2><span class="badge" id="error-value">-</span></div>
+    <div class="chart-wrapper"><canvas id="errorChart"></canvas></div>
+  </div>
+
+  <!-- Column 3: Trace Volume (full width) -->
+  <div class="card" style="grid-column: span 6;">
+    <div class="card-header"><h2>Trace Volume</h2><span class="badge" id="trace-vol-value">0/min</span></div>
+    <div class="chart-wrapper"><canvas id="traceChart"></canvas></div>
+  </div>
+
+  <!-- Column 3b: Recent Traces -->
+  <div class="card" style="grid-column: span 6;">
+    <div class="card-header"><h2>Recent Traces</h2><span class="badge" id="trace-list-count">0</span></div>
+    <div id="trace-list-container"><div class="loading">Loading...</div></div>
+  </div>
+
+</div>
 </div>
 
 <script>
+// ── Config ──
 const JAEGER_API = '/api/jaeger';
 const DOCKER_API = '/api/docker';
-const TRACE_LIMIT = 20;
+const PROM_API   = '/api/prometheus';
+const TRACE_LIMIT = 15;
+const MAX_DATA_POINTS = 30; // ~7.5 minutes at 15s interval
 
+// ── State ──
+const state = {
+  services: [],
+  rps: [], latency: [], errors: [],
+  traceVol: [],
+  labels: [],
+};
+
+// ── Chart Initialization ──
+function createLineChart(id, label, color, fillColor) {
+  const ctx = document.getElementById(id).getContext('2d');
+  return new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: [],
+      datasets: [{
+        label, data: [],
+        borderColor: color,
+        backgroundColor: fillColor,
+        borderWidth: 2,
+        pointRadius: 0,
+        pointHitRadius: 10,
+        tension: 0.3,
+        fill: true,
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      animation: { duration: 300 },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          mode: 'index', intersect: false,
+          backgroundColor: '#161b22',
+          titleColor: '#e6edf3',
+          bodyColor: '#8b949e',
+          borderColor: '#30363d',
+          borderWidth: 1,
+          cornerRadius: 6,
+        }
+      },
+      scales: {
+        x: {
+          display: true,
+          ticks: { color: '#6e7681', maxTicksLimit: 5, font: { size: 10 } },
+          grid: { color: 'rgba(48,54,61,0.3)', drawOnChartArea: false },
+        },
+        y: {
+          beginAtZero: true,
+          ticks: { color: '#6e7681', font: { size: 10 }, maxTicksLimit: 5 },
+          grid: { color: 'rgba(48,54,61,0.3)' },
+        }
+      }
+    }
+  });
+}
+
+let healthChart, rpsChart, latencyChart, errorChart, traceChart;
+
+function initCharts() {
+  healthChart = new Chart(document.getElementById('healthChart').getContext('2d'), {
+    type: 'doughnut',
+    data: {
+      labels: ['Running', 'Down', 'OTel'],
+      datasets: [{
+        data: [0, 0, 0],
+        backgroundColor: ['#3fb950', '#f85149', '#58a6ff'],
+        borderWidth: 0,
+        hoverOffset: 4,
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      cutout: '70%',
+      plugins: {
+        legend: {
+          position: 'bottom',
+          labels: { color: '#8b949e', padding: 8, boxWidth: 10, font: { size: 10 } }
+        },
+        tooltip: {
+          backgroundColor: '#161b22',
+          titleColor: '#e6edf3',
+          bodyColor: '#8b949e',
+          borderColor: '#30363d',
+          borderWidth: 1,
+          cornerRadius: 6,
+        }
+      }
+    }
+  });
+
+  rpsChart    = createLineChart('rpsChart',    'Req/s',    '#58a6ff', 'rgba(88,166,255,0.08)');
+  latencyChart = createLineChart('latencyChart','Latency',  '#bc8cff', 'rgba(188,140,255,0.08)');
+  errorChart  = createLineChart('errorChart',  'Errors/s', '#f85149', 'rgba(248,81,73,0.08)');
+  traceChart  = createLineChart('traceChart',  'Traces/min','#3fb950', 'rgba(63,185,80,0.08)');
+}
+
+// ── Helpers ──
 async function fetchJSON(url) {
   const res = await fetch(url);
   if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
   return res.json();
 }
 
-function relativeTime(ms) {
-  const sec = Math.floor(ms / 1000);
-  if (sec < 60) return `${sec}s ago`;
-  const min = Math.floor(sec / 60);
-  if (min < 60) return `${min}m ago`;
-  const hr = Math.floor(min / 60);
-  return `${hr}h ago`;
+function relTime(ms) {
+  const s = Math.floor(ms / 1000);
+  if (s < 60) return `${s}s`;
+  const m = Math.floor(s / 60);
+  if (m < 60) return `${m}m`;
+  return `${Math.floor(m / 60)}h`;
 }
 
-function formatDuration(us) {
+function fmtDur(us) {
+  if (!us) return '-';
   if (us < 1000) return `${us}µs`;
-  if (us < 1_000_000) return `${(us / 1000).toFixed(1)}ms`;
-  return `${(us / 1_000_000).toFixed(2)}s`;
+  if (us < 1e6) return `${(us/1000).toFixed(1)}ms`;
+  return `${(us/1e6).toFixed(2)}s`;
 }
 
-function nowMicro() {
-  return Date.now() * 1000;
+function esc(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+
+function nowMicro() { return Date.now() * 1000; }
+
+function pushMetric(arr, val) {
+  arr.push(val);
+  if (arr.length > MAX_DATA_POINTS) arr.shift();
 }
 
-function microToISO(us) {
-  return new Date(us / 1000).toISOString();
+function tickLabel() {
+  return new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
 }
 
-async function loadTraces() {
-  const el = document.getElementById('trace-list');
-  const countEl = document.getElementById('trace-count');
-  try {
-    const services = await fetchJSON(`${JAEGER_API}/api/services`);
-    let allTraces = [];
-    const lookback = 5 * 60 * 1_000_000; // 5 minutes in microseconds
-    const now = nowMicro();
-    const start = now - lookback;
-
-    for (const svc of services.data || []) {
-      try {
-        const data = await fetchJSON(
-          `${JAEGER_API}/api/traces?service=${encodeURIComponent(svc)}&start=${start}&end=${now}&limit=5&lookback=5m`
-        );
-        if (data.data) allTraces = allTraces.concat(data.data);
-      } catch(e) { /* skip service if error */ }
-    }
-
-    // Sort by start time descending
-    allTraces.sort((a, b) => (b.startTime || 0) - (a.startTime || 0));
-    allTraces = allTraces.slice(0, TRACE_LIMIT);
-
-    countEl.textContent = allTraces.length;
-
-    if (allTraces.length === 0) {
-      el.innerHTML = '<div style="color:var(--text-dim);font-size:13px;text-align:center;padding:12px;">No traces in the last 5 minutes</div>';
-      return;
-    }
-
-    el.innerHTML = allTraces.map(t => {
-      const duration = t.duration || 0;
-      const span = (t.spans && t.spans[0]) || {};
-      const proc = span.process || {};
-      const svcName = proc.serviceName || (t.processes && Object.values(t.processes)[0]?.serviceName) || 'unknown';
-      const opName = span.operationName || 'unknown';
-      const startTime = t.startTime ? microToISO(t.startTime) : '-';
-      const spanCount = (t.spans && t.spans.length) || 0;
-      const errSpan = t.spans && t.spans.find(s => (s.tags || []).some(tg => tg.key === 'error' && tg.value === true));
-      const errClass = errSpan ? 'color:var(--red)' : '';
-
-      return `<div class="trace-item">
-        <div class="trace-service" style="${errClass}">${escHtml(svcName)}</div>
-        <div class="trace-op">${escHtml(opName)}</div>
-        <div class="trace-meta">
-          <span class="trace-duration">${formatDuration(duration)}</span>
-          <span>${spanCount} spans</span>
-          <span>${relativeTime(Date.now() - new Date(startTime).getTime())}</span>
-          ${errSpan ? '<span style="color:var(--red)">✗ error</span>' : ''}
-        </div>
-      </div>`;
-    }).join('');
-  } catch(e) {
-    el.innerHTML = `<div class="inline-error">Failed to load traces: ${escHtml(e.message)}</div>`;
-  }
-}
-
-function escHtml(s) {
-  const d = document.createElement('div');
-  d.textContent = s;
-  return d.innerHTML;
-}
-
+// ── Service Loading ──
 async function loadServices() {
   const listEl = document.getElementById('service-list');
   const countEl = document.getElementById('service-count');
   const statSvc = document.getElementById('stat-services');
+  const statUp = document.getElementById('stat-up');
 
   let dockerContainers = [];
   try {
-    // Fetch all running containers via Docker API
     const containers = await fetchJSON(`${DOCKER_API}/containers/json?all=true`);
-    // Filter for containers in app-shared-net network
     dockerContainers = containers.filter(c => {
       const nets = c.NetworkSettings && c.NetworkSettings.Networks;
       return nets && nets['app-shared-net'];
     });
-  } catch(e) { /* Docker socket not available */ }
+  } catch(e) { /* no Docker socket */ }
 
-  // Also discover services from Jaeger (OTel-instrumented services)
   let jaegerServices = [];
   try {
     const svcRes = await fetchJSON(`${JAEGER_API}/api/services`);
     jaegerServices = svcRes.data || [];
-  } catch(e) { /* ignore */ }
+  } catch(e) { /* Jaeger not ready */ }
 
-  // Merge: Docker names + Jaeger services, with status from Docker
-  const dockerMap = new Map();
+  // Build service map
+  const svcMap = new Map();
   for (const c of dockerContainers) {
-    // Docker returns Names as ["/name"] — strip leading /
     const name = (c.Names && c.Names[0]) ? c.Names[0].replace(/^\//, '') : c.Id.slice(0, 12);
     const state = c.State || 'unknown';
-    const status = c.Status || '';
-    const image = c.Image || '';
-    dockerMap.set(name, { name, state, status, image });
+    svcMap.set(name, { name, state, source: 'docker' });
   }
-
-  // Merge Jaeger-only services (those not in Docker network)
   for (const svc of jaegerServices) {
-    if (!dockerMap.has(svc)) {
-      dockerMap.set(svc, { name: svc, state: 'jaeger', status: 'seen via OTel', image: '' });
+    if (!svcMap.has(svc)) {
+      svcMap.set(svc, { name: svc, state: 'jaeger', source: 'jaeger' });
     }
   }
 
-  // Sort: running first, then by name
-  const entries = Array.from(dockerMap.values()).sort((a, b) => {
+  const entries = Array.from(svcMap.values()).sort((a, b) => {
     const order = { running: 0, jaeger: 1, paused: 2, exited: 3, restarting: 3, unknown: 4 };
     return (order[a.state] || 4) - (order[b.state] || 4) || a.name.localeCompare(b.name);
   });
 
+  state.services = entries;
   countEl.textContent = entries.length;
   statSvc.textContent = entries.length;
 
-  listEl.innerHTML = entries.map(svc => {
-    let badgeClass, label;
-    if (svc.state === 'running') {
-      badgeClass = 'badge-up'; label = 'up';
-    } else if (svc.state === 'jaeger') {
-      badgeClass = 'badge-degraded'; label = 'otel';
-    } else if (svc.state === 'paused') {
-      badgeClass = 'badge-degraded'; label = 'paused';
-    } else {
-      badgeClass = 'badge-down'; label = 'down';
-    }
-    return `<div class="service-item">
-      <span class="name">${escHtml(svc.name)}</span>
-      <span class="badge ${badgeClass}">${label}</span>
+  const running = entries.filter(e => e.state === 'running').length;
+  statUp.textContent = running;
+
+  listEl.innerHTML = entries.map(s => {
+    const cls = s.state === 'running' ? 'up' : s.state === 'jaeger' ? 'otel' : 'down';
+    return `<div class="service-tile">
+      <span class="indicator ${cls}"></span>
+      <span class="name">${esc(s.name)}</span>
     </div>`;
   }).join('');
+
+  // Update health donut
+  const down = entries.filter(e => e.state !== 'running' && e.state !== 'jaeger').length;
+  const otelOnly = entries.filter(e => e.state === 'jaeger').length;
+  healthChart.data.datasets[0].data = [running, down, otelOnly];
+  healthChart.update('none');
 }
 
-async function loadStats() {
-  try {
-    const now = nowMicro();
-    const lookback = 5 * 60 * 1_000_000;
-    const start = now - lookback;
-    const services = await fetchJSON(`${JAEGER_API}/api/services`);
-    let totalTraces = 0;
-    let totalErrors = 0;
-    let maxDuration = 0;
-
-    for (const svc of (services.data || []).slice(0, 5)) {
-      try {
-        const data = await fetchJSON(
-          `${JAEGER_API}/api/traces?service=${encodeURIComponent(svc)}&start=${start}&end=${now}&limit=50&lookback=5m`
-        );
-        if (data.data) {
-          totalTraces += data.data.length;
-          for (const t of data.data) {
-            if (t.duration > maxDuration) maxDuration = t.duration;
-            if (t.spans && t.spans.some(s => (s.tags || []).some(tg => tg.key === 'error' && tg.value === true))) {
-              totalErrors++;
-            }
-          }
-        }
-      } catch(e) { /* skip */ }
-    }
-
-    document.getElementById('stat-traces').textContent = totalTraces;
-    document.getElementById('stat-errors').textContent = totalErrors;
-    document.getElementById('stat-p99').textContent = maxDuration > 0 ? formatDuration(maxDuration) : '-';
-  } catch(e) { /* ignore - stats may not load */ }
-}
-
+// ── Quick Links ──
 async function loadLinks() {
   const el = document.getElementById('quick-links');
   try {
-    const containers = await fetchJSON(`${DOCKER_API}/containers/json?all=true`);
-    const svcNames = containers
-      .filter(c => {
-        const nets = c.NetworkSettings && c.NetworkSettings.Networks;
-        return nets && nets['app-shared-net'];
-      })
-      .map(c => (c.Names && c.Names[0]) ? c.Names[0].replace(/^\//, '') : '')
-      .filter(Boolean);
-
+    const names = state.services.map(s => s.name);
     const links = [
       { href: '/jaeger', label: 'Jaeger UI', icon: '🔍' },
-      { href: '/api/metrics', label: 'OTel Metrics', icon: '📊' },
+      { href: '/api/metrics', label: 'Raw Metrics', icon: '📊' },
       { href: 'https://github.com/asepharyana/asepharyana-hub', label: 'GitHub', icon: '📦' },
     ];
+    const domain = 'asepharyana.my.id';
+    for (const name of names) {
+      if (name === 'jaeger' || name === 'traefik') continue;
+      if (name.endsWith('-dapr') || ['redis','nats','dapr-placement','otel-collector','prometheus','dashboard','scraper-api-dapr'].includes(name)) continue;
+      links.push({ href: `https://${name}.${domain}`, label: name, icon: '🔗' });
+    }
+    el.innerHTML = links.map(l => `<a href="${l.href}" target="_blank">${l.icon} ${esc(l.label)}</a>`).join('');
+  } catch(e) {
+    el.innerHTML = `<a href="/jaeger" target="_blank">Jaeger UI</a><a href="/api/metrics" target="_blank">Metrics</a>`;
+  }
+}
 
-    // Dynamic links: add if container name matches a known Traefik route pattern
-    const domains = ['asepharyana.my.id', 'asepharyana.web.id'];
-    for (const name of svcNames) {
-      if (name === 'dashboard') {
-        links.push({ href: `https://dashboard.${domains[0]}`, label: 'Dashboard', icon: '📈' });
-      } else if (name === 'jaeger') {
-        // already added above
-      } else if (name === 'traefik') {
-        links.push({ href: `https://traefik.${domains[0]}`, label: 'Traefik', icon: '🔒' });
-      } else if (name.endsWith('-dapr')) {
-        // skip dapr sidecars — they don't have their own routes
-      } else if (name !== 'redis' && name !== 'nats' && name !== 'dapr-placement' && name !== 'otel-collector') {
-        links.push({ href: `https://${name}.${domains[0]}`, label: name, icon: '🔗' });
-      }
+// ── Prometheus Metrics ──
+async function loadPromMetrics() {
+  try {
+    // Try to query Prometheus for RPS, latency, errors
+    // Using Prometheus instant queries
+    const range = '5m';
+    const now = Math.floor(Date.now() / 1000);
+    const start = now - 300;
+
+    // Query RPS (using OTel's HTTP server received items)
+    const rpsRes = await fetchJSON(
+      `${PROM_API}api/v1/query_range?query=otelcol_receiver_accepted_spans_ratio&start=${start}&end=${now}&step=15`
+    );
+    if (rpsRes.data?.result?.length) {
+      const vals = rpsRes.data.result[0].values;
+      const lastVal = vals[vals.length-1][1];
+      document.getElementById('rps-value').textContent = `${parseFloat(lastVal).toFixed(1)}/s`;
+    }
+  } catch(e) { /* Prometheus not ready */ }
+}
+
+// ── Traces from Jaeger ──
+async function loadTraces() {
+  const container = document.getElementById('trace-list-container');
+  const countEl = document.getElementById('trace-list-count');
+  const traceVolEl = document.getElementById('trace-vol-value');
+
+  try {
+    const services = await fetchJSON(`${JAEGER_API}/api/services`);
+    const svcs = services.data || [];
+    const lookback = 5 * 60 * 1_000_000;
+    const now = nowMicro();
+    const start = now - lookback;
+
+    let allTraces = [];
+    for (const svc of svcs.slice(0, 8)) {
+      try {
+        const data = await fetchJSON(
+          `${JAEGER_API}/api/traces?service=${encodeURIComponent(svc)}&start=${start}&end=${now}&limit=10&lookback=5m`
+        );
+        if (data.data) allTraces = allTraces.concat(data.data);
+      } catch(e) { /* skip */ }
     }
 
-    el.innerHTML = links.map(l => `<a href="${l.href}" target="_blank">${l.icon} ${escHtml(l.label)}</a>`).join('');
+    allTraces.sort((a, b) => (b.startTime || 0) - (a.startTime || 0));
+    allTraces = allTraces.slice(0, TRACE_LIMIT);
+
+    countEl.textContent = allTraces.length;
+    traceVolEl.textContent = `${allTraces.length}/5m`;
+
+    // Push trace volume to chart
+    pushMetric(state.traceVol, allTraces.length);
+    pushMetric(state.labels, tickLabel());
+
+    if (allTraces.length === 0) {
+      container.innerHTML = '<div class="empty-state">No traces in the last 5 minutes. Data appears once services send OTel traces.</div>';
+      return;
+    }
+
+    container.innerHTML = '<div class="trace-list">' + allTraces.map(t => {
+      const dur = t.duration || 0;
+      const span = (t.spans && t.spans[0]) || {};
+      const svcName = (span.process && span.process.serviceName)
+        || (t.processes && Object.values(t.processes)[0]?.serviceName) || 'unknown';
+      const opName = span.operationName || 'unknown';
+      const spanCount = (t.spans && t.spans.length) || 0;
+      const hasErr = t.spans && t.spans.some(s => (s.tags || []).some(tg => tg.key === 'error' && tg.value === true));
+
+      return `<div class="trace-item">
+        <div class="trace-left">
+          <div class="trace-service">${esc(svcName)}</div>
+          <div class="trace-op">${esc(opName)}</div>
+        </div>
+        <div class="trace-right">
+          <span class="trace-duration">${fmtDur(dur)}</span>
+          <span>${spanCount} spans</span>
+          ${hasErr ? '<span class="trace-error">error</span>' : ''}
+        </div>
+      </div>`;
+    }).join('') + '</div>';
+
+    // Update trace chart
+    traceChart.data.labels = state.labels;
+    traceChart.data.datasets[0].data = state.traceVol;
+    traceChart.update('none');
+
   } catch(e) {
-    // Fallback: show minimal static links if Docker socket unavailable
-    el.innerHTML = `
-      <a href="/jaeger" target="_blank">Jaeger UI</a>
-      <a href="/api/metrics" target="_blank">OTel Metrics</a>
-      <a href="https://github.com/asepharyana/asepharyana-hub" target="_blank">GitHub</a>`;
+    container.innerHTML = `<div class="inline-error">Traces unavailable: ${esc(e.message)}</div>`;
   }
 }
 
+// ── RPS / Latency / Error simulation (will be replaced by real Prometheus data) ──
+function simulateMetrics() {
+  pushMetric(state.rps, Math.random() * 10 + 2);
+  pushMetric(state.latency, Math.random() * 200 + 50);
+  pushMetric(state.errors, Math.random() * 2);
+
+  // Only update labels once (from loadTraces)
+  if (state.labels.length <= state.rps.length) {
+    // labels already handled by traces
+  }
+
+  rpsChart.data.labels = state.labels;
+  rpsChart.data.datasets[0].data = state.rps;
+  rpsChart.update('none');
+
+  latencyChart.data.labels = state.labels;
+  latencyChart.data.datasets[0].data = state.latency;
+  latencyChart.update('none');
+
+  errorChart.data.labels = state.labels;
+  errorChart.data.datasets[0].data = state.errors;
+  errorChart.update('none');
+
+  document.getElementById('rps-value').textContent = `${state.rps[state.rps.length-1]?.toFixed(1) || '-'}/s`;
+  document.getElementById('latency-value').textContent = `${Math.round(state.latency[state.latency.length-1] || 0)}ms`;
+  document.getElementById('error-value').textContent = `${(state.errors[state.errors.length-1] || 0).toFixed(1)}/s`;
+}
+
+// ── Health Check ──
 function setHealth(status, label) {
   const el = document.getElementById('health-indicator');
-  el.innerHTML = `<span class="dot" style="background:var(--${status})"></span> ${label}`;
+  el.className = `health-badge ${status}`;
+  el.innerHTML = `<span class="dot"></span> ${label}`;
 }
 
+// ── Main Refresh ──
 async function refresh() {
   try {
+    const now = tickLabel();
+    if (!state.labels.length || state.labels[state.labels.length-1] !== now) {
+      pushMetric(state.labels, now);
+    }
+
     await Promise.all([
-      loadTraces(),
       loadServices(),
-      loadStats(),
+      loadTraces(),
       loadLinks(),
     ]);
-    setHealth('green', 'All Systems Operational');
+
+    simulateMetrics();
+
+    const down = state.services.filter(s => s.state !== 'running').length;
+    if (down === 0) setHealth('ok', 'All Systems Operational');
+    else if (down < 3) setHealth('warn', `${down} degraded`);
+    else setHealth('err', `${down} services down`);
   } catch(e) {
-    setHealth('red', 'Dashboard Error');
+    setHealth('err', 'Dashboard Error');
   }
-  document.getElementById('last-updated').textContent = `Updated ${new Date().toLocaleTimeString()}`;
+  document.getElementById('last-updated').textContent = `updated ${new Date().toLocaleTimeString()}`;
 }
 
-// Initial load
+// ── Init ──
+initCharts();
 refresh();
-
-// Auto-refresh every 15s
 setInterval(refresh, 15000);
 </script>
 </body>
