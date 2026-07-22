@@ -166,13 +166,10 @@
   <!-- Links -->
   <div class="card">
     <h2>Quick Links</h2>
-    <div class="links">
-      <a href="/jaeger" target="_blank">Jaeger UI</a>
-      <a href="/api/metrics" target="_blank">OTel Metrics</a>
-      <a href="https://traefik.asepharyana.my.id" target="_blank">Traefik</a>
-      <a href="https://scraper.asepharyana.my.id" target="_blank">Scraper API</a>
-      <a href="https://github.com/asepharyana/asepharyana-hub" target="_blank">GitHub</a>
+    <div class="links" id="quick-links">
+      <div class="loading">Loading...</div>
     </div>
+  </div>
   </div>
 
   <!-- Recent Traces -->
@@ -184,6 +181,7 @@
 
 <script>
 const JAEGER_API = '/api/jaeger';
+const DOCKER_API = '/api/docker';
 const TRACE_LIMIT = 20;
 
 async function fetchJSON(url) {
@@ -283,39 +281,64 @@ async function loadServices() {
   const countEl = document.getElementById('service-count');
   const statSvc = document.getElementById('stat-services');
 
-  const services = [
-    { name: 'traefik', port: 'traefik' },
-    { name: 'redis', port: 'redis' },
-    { name: 'nats', port: 'nats' },
-    { name: 'dapr-placement', port: 'dapr-placement' },
-    { name: 'scraper-api', port: 'scraper-api' },
-    { name: 'scraper-api-dapr', port: 'scraper-api-dapr' },
-    { name: 'otel-collector', port: 'otel-collector' },
-    { name: 'jaeger', port: 'jaeger' },
-  ];
+  let dockerContainers = [];
+  try {
+    // Fetch all running containers via Docker API
+    const containers = await fetchJSON(`${DOCKER_API}/containers/json?all=true`);
+    // Filter for containers in app-shared-net network
+    dockerContainers = containers.filter(c => {
+      const nets = c.NetworkSettings && c.NetworkSettings.Networks;
+      return nets && nets['app-shared-net'];
+    });
+  } catch(e) { /* Docker socket not available */ }
 
-  // Try to get services from Jaeger for display
+  // Also discover services from Jaeger (OTel-instrumented services)
   let jaegerServices = [];
   try {
     const svcRes = await fetchJSON(`${JAEGER_API}/api/services`);
     jaegerServices = svcRes.data || [];
   } catch(e) { /* ignore */ }
 
-  // Determine services to display: prefer Jaeger-reported + infrastructure
-  const allNames = new Set([...services.map(s => s.name), ...jaegerServices]);
-  const displayNames = Array.from(allNames).sort();
-  countEl.textContent = displayNames.length;
-  statSvc.textContent = displayNames.length;
+  // Merge: Docker names + Jaeger services, with status from Docker
+  const dockerMap = new Map();
+  for (const c of dockerContainers) {
+    // Docker returns Names as ["/name"] — strip leading /
+    const name = (c.Names && c.Names[0]) ? c.Names[0].replace(/^\//, '') : c.Id.slice(0, 12);
+    const state = c.State || 'unknown';
+    const status = c.Status || '';
+    const image = c.Image || '';
+    dockerMap.set(name, { name, state, status, image });
+  }
 
-  listEl.innerHTML = displayNames.map(name => {
-    // Determine status: Jaeger services are "up", check others via probe
-    // Simple heuristic: green if in Docker services list, yellow for Jaeger-only
-    const infraService = services.find(s => s.name === name);
-    const status = infraService ? 'up' : 'degraded';
-    const badgeClass = status === 'up' ? 'badge-up' : 'badge-degraded';
-    const label = status === 'up' ? 'up' : 'unknown';
+  // Merge Jaeger-only services (those not in Docker network)
+  for (const svc of jaegerServices) {
+    if (!dockerMap.has(svc)) {
+      dockerMap.set(svc, { name: svc, state: 'jaeger', status: 'seen via OTel', image: '' });
+    }
+  }
+
+  // Sort: running first, then by name
+  const entries = Array.from(dockerMap.values()).sort((a, b) => {
+    const order = { running: 0, jaeger: 1, paused: 2, exited: 3, restarting: 3, unknown: 4 };
+    return (order[a.state] || 4) - (order[b.state] || 4) || a.name.localeCompare(b.name);
+  });
+
+  countEl.textContent = entries.length;
+  statSvc.textContent = entries.length;
+
+  listEl.innerHTML = entries.map(svc => {
+    let badgeClass, label;
+    if (svc.state === 'running') {
+      badgeClass = 'badge-up'; label = 'up';
+    } else if (svc.state === 'jaeger') {
+      badgeClass = 'badge-degraded'; label = 'otel';
+    } else if (svc.state === 'paused') {
+      badgeClass = 'badge-degraded'; label = 'paused';
+    } else {
+      badgeClass = 'badge-down'; label = 'down';
+    }
     return `<div class="service-item">
-      <span class="name">${escHtml(name)}</span>
+      <span class="name">${escHtml(svc.name)}</span>
       <span class="badge ${badgeClass}">${label}</span>
     </div>`;
   }).join('');
@@ -354,6 +377,50 @@ async function loadStats() {
   } catch(e) { /* ignore - stats may not load */ }
 }
 
+async function loadLinks() {
+  const el = document.getElementById('quick-links');
+  try {
+    const containers = await fetchJSON(`${DOCKER_API}/containers/json?all=true`);
+    const svcNames = containers
+      .filter(c => {
+        const nets = c.NetworkSettings && c.NetworkSettings.Networks;
+        return nets && nets['app-shared-net'];
+      })
+      .map(c => (c.Names && c.Names[0]) ? c.Names[0].replace(/^\//, '') : '')
+      .filter(Boolean);
+
+    const links = [
+      { href: '/jaeger', label: 'Jaeger UI', icon: '🔍' },
+      { href: '/api/metrics', label: 'OTel Metrics', icon: '📊' },
+      { href: 'https://github.com/asepharyana/asepharyana-hub', label: 'GitHub', icon: '📦' },
+    ];
+
+    // Dynamic links: add if container name matches a known Traefik route pattern
+    const domains = ['asepharyana.my.id', 'asepharyana.web.id'];
+    for (const name of svcNames) {
+      if (name === 'dashboard') {
+        links.push({ href: `https://dashboard.${domains[0]}`, label: 'Dashboard', icon: '📈' });
+      } else if (name === 'jaeger') {
+        // already added above
+      } else if (name === 'traefik') {
+        links.push({ href: `https://traefik.${domains[0]}`, label: 'Traefik', icon: '🔒' });
+      } else if (name.endsWith('-dapr')) {
+        // skip dapr sidecars — they don't have their own routes
+      } else if (name !== 'redis' && name !== 'nats' && name !== 'dapr-placement' && name !== 'otel-collector') {
+        links.push({ href: `https://${name}.${domains[0]}`, label: name, icon: '🔗' });
+      }
+    }
+
+    el.innerHTML = links.map(l => `<a href="${l.href}" target="_blank">${l.icon} ${escHtml(l.label)}</a>`).join('');
+  } catch(e) {
+    // Fallback: show minimal static links if Docker socket unavailable
+    el.innerHTML = `
+      <a href="/jaeger" target="_blank">Jaeger UI</a>
+      <a href="/api/metrics" target="_blank">OTel Metrics</a>
+      <a href="https://github.com/asepharyana/asepharyana-hub" target="_blank">GitHub</a>`;
+  }
+}
+
 function setHealth(status, label) {
   const el = document.getElementById('health-indicator');
   el.innerHTML = `<span class="dot" style="background:var(--${status})"></span> ${label}`;
@@ -365,6 +432,7 @@ async function refresh() {
       loadTraces(),
       loadServices(),
       loadStats(),
+      loadLinks(),
     ]);
     setHealth('green', 'All Systems Operational');
   } catch(e) {

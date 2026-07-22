@@ -49,6 +49,13 @@ services:
           - dashboard
     ports:
       - '8080:8080'
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    depends_on:
+      jaeger:
+        condition: service_started
+      otel-collector:
+        condition: service_started
 
 networks:
   app-shared-net:
