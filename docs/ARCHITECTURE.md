@@ -16,7 +16,7 @@ Dua node terhubung via **Tailscale** overlay network:
 │  ├─ Dapr Placement           │       └──────────────────────────────┘
 │  ├─ Redis (cache, Dapr)      │
 │  ├─ Scraper API + Dapr       │
-│  └─ (future services)        │
+│  └─ Hub (Next.js SPA)       │
 └──────────────────────────────┘
 ```
 
@@ -36,7 +36,8 @@ Traefik (v3.6)
    ├─ Plugin: real-ip (Cloudflare), block-sensitive-paths
    │
    ▼ Router matching
-Host(`scraper.asepharyana.my.id`) || Host(`api.asepharyana.my.id`)
+Host(`scraper.asepharyana.my.id`) || Host(`api.asepharyana.my.id') → scraper-api
+Host(`hub.asepharyana.my.id`) → hub
    │
    ▼ Service load balancer
 http://scraper-api:4091
@@ -63,6 +64,7 @@ Semua service berjalan dalam satu Docker Compose project bernama `compose` dan b
 | `nats.yml` | `nats` | Message broker + JetStream persistent streaming |
 | `dapr.yml` | `dapr-placement` | Koordinasi actor placement untuk sidecar Dapr |
 | `scraper.yml` | `scraper-api` + `scraper-api-dapr` | Aplikasi Rust + sidecar Dapr |
+| `hub.yml` | `hub` | Next.js SPA portfolio |
 
 ### Dapr Sidecar Pattern
 

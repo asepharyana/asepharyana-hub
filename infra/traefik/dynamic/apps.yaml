@@ -1,5 +1,15 @@
 http:
   routers:
+    # ── Hub (Portfolio SPA) ──
+    hub:
+      rule: 'Host(`hub.asepharyana.my.id`) || Host(`hub.asepharyana.web.id`)'
+      entryPoints:
+        - websecure
+      tls: {}
+      middlewares:
+        - common-chain@file
+      service: hub-service
+
     # ── Scraper API ──
     scraper:
       rule: 'Host(`scraper.asepharyana.my.id`) || Host(`api.asepharyana.my.id`) || Host(`scraper.asepharyana.web.id`) || Host(`api.asepharyana.web.id`)'
@@ -31,6 +41,11 @@ http:
       service: jaeger-service
 
   services:
+    hub-service:
+      loadBalancer:
+        servers:
+          - url: 'http://hub:3000'
+
     scraper-service:
       loadBalancer:
         servers:

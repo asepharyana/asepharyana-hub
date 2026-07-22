@@ -36,7 +36,7 @@ jobs:
           fi
 
           case "$SERVICE" in
-            scraper-api) ;;
+            scraper-api|hub) ;;
             *)
               echo "::error::Unsupported service '$SERVICE'"
               exit 1
