@@ -9,6 +9,7 @@ Asepharyana Hub is a **hub monorepo** for Asep Haryana Saputra's portfolio ecosy
 ```
 asepharyana-hub/
 ├── apps/              # Git submodules — each app is its own repo
+│   ├── hub/           # Personal portfolio SPA (asepharyana-hub-hub)
 │   └── scraper/       # Rust scraper API (asepharyana-hub-scraper)
 ├── docs/              # ADRs, deployment guide, new-app guide
 ├── infra/
@@ -23,7 +24,9 @@ asepharyana-hub/
 ### Submodule Strategy
 - Each app in `apps/` is a separate Git repo imported as a submodule. Code changes happen in the submodule repo, not here.
 - Submodule pointers are updated by CI/CD (via `repository_dispatch` or manual commit).
-- Current submodule: `apps/scraper` → `asepharyana/asepharyana-hub-scraper`.
+- Current submodules:
+  - `apps/hub` → `asepharyana/asepharyana-hub-hub`
+  - `apps/scraper` → `asepharyana/asepharyana-hub-scraper`.
 
 ### Infrastructure Stack
 - **Traefik v3.6** — reverse proxy, TLS termination, middleware chain (rate-limit, headers, buffer, block-sensitive-paths)

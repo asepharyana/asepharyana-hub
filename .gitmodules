@@ -1,3 +1,6 @@
 [submodule "apps/scraper"]
 	path = apps/scraper
 	url = https://github.com/asepharyana/asepharyana-hub-scraper.git
+[submodule "apps/hub"]
+	path = apps/hub
+	url = https://github.com/asepharyana/asepharyana-hub-hub.git
