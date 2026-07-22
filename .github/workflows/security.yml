@@ -13,8 +13,16 @@ jobs:
     permissions:
       security-events: write
     steps:
-      - uses: actions/checkout@v6
-      - uses: github/codeql-action/init@v3
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 2
+
+      - uses: github/codeql-action/init@v4
         with:
           languages: rust
-      - uses: github/codeql-action/analyze@v3
+
+      - name: Build Rust project for CodeQL analysis
+        run: cargo build
+        working-directory: apps/scraper
+
+      - uses: github/codeql-action/analyze@v4
