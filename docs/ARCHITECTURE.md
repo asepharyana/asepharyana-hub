@@ -36,8 +36,8 @@ Traefik (v3.6)
    ├─ Plugin: real-ip (Cloudflare), block-sensitive-paths
    │
    ▼ Router matching
-Host(`scraper.asepharyana.my.id`) || Host(`api.asepharyana.my.id') → scraper-api
-Host(`hub.asepharyana.my.id`) → hub
+Host(`asepharyana.my.id`) || Host(`www.asepharyana.my.id`) || Host(`hub.asepharyana.my.id`) → hub
+Host(`scraper.asepharyana.my.id`) || Host(`api.asepharyana.my.id`) → scraper-api
    │
    ▼ Service load balancer
 http://scraper-api:4091

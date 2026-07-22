@@ -2,7 +2,7 @@ http:
   routers:
     # ── Hub (Portfolio SPA) ──
     hub:
-      rule: 'Host(`hub.asepharyana.my.id`) || Host(`hub.asepharyana.web.id`)'
+      rule: 'Host(`asepharyana.my.id`) || Host(`www.asepharyana.my.id`) || Host(`hub.asepharyana.my.id`) || Host(`asepharyana.web.id`) || Host(`www.asepharyana.web.id`) || Host(`hub.asepharyana.web.id`)'
       entryPoints:
         - websecure
       tls: {}
