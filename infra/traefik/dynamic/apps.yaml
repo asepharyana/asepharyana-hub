@@ -30,26 +30,6 @@ http:
         - common-chain@file
       service: jaeger-service
 
-    # ── LSAR Frontend ──
-    lidm-frontend:
-      rule: 'Host(`lidm.asepharyana.my.id`)'
-      entryPoints:
-        - websecure
-      tls: {}
-      middlewares:
-        - common-chain@file
-      service: lidm-frontend-service
-
-    # ── LSAR Backend API ──
-    lidm-backend:
-      rule: 'Host(`lidm-api.asepharyana.my.id`)'
-      entryPoints:
-        - websecure
-      tls: {}
-      middlewares:
-        - common-chain@file
-      service: lidm-backend-service
-
   services:
     hub-service:
       loadBalancer:
@@ -65,13 +45,3 @@ http:
       loadBalancer:
         servers:
           - url: 'http://jaeger:16686'
-
-    lidm-frontend-service:
-      loadBalancer:
-        servers:
-          - url: 'http://lidm-frontend:3000'
-
-    lidm-backend-service:
-      loadBalancer:
-        servers:
-          - url: 'http://lidm-backend:3001'
