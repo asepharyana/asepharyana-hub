@@ -50,6 +50,9 @@ services:
       - '--experimental.plugins.blockpath.moduleName=github.com/traefik/plugin-blockpath'
       - '--experimental.plugins.blockpath.version=v0.2.1'
       - '--ping=true'
+      - '--metrics.prometheus=true'
+      - '--metrics.prometheus.addEntryPointsLabels=true'
+      - '--metrics.prometheus.addServicesLabels=true'
       - '--tracing.otlp=true'
       - '--tracing.otlp.http=true'
       - '--tracing.otlp.http.endpoint=http://otel-collector:4318'
@@ -77,6 +80,8 @@ services:
       - 'traefik.http.routers.traefik.entrypoints=websecure'
       - 'traefik.http.routers.traefik.tls=true'
       - 'traefik.http.routers.traefik.middlewares=admin-chain@file'
+      - 'prometheus.io/scrape=true'
+      - 'prometheus.io/port=8080'
 
 networks:
   app-shared-net:

@@ -55,6 +55,7 @@ services:
     volumes:
       - ../../infra/otel/prometheus.yml:/etc/prometheus/prometheus.yml:ro
       - /prometheus
+      - /var/run/docker.sock:/var/run/docker.sock:ro
 
   # ── Node Exporter (Host Metrics: CPU, RAM, Disk) ──
   node-exporter:
