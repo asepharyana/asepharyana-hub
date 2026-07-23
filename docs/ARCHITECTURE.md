@@ -36,8 +36,15 @@ Traefik (v3.6)
    ├─ Plugin: real-ip (Cloudflare), block-sensitive-paths
    │
    ▼ Router matching
-Host(`asepharyana.my.id`) || Host(`www.asepharyana.my.id`) || Host(`hub.asepharyana.my.id`) → hub
+Host(`asepharyana.my.id`) || Host(`www.asepharyana.my.id`) → hub
+host(`hub.asepharyana.my.id`) → hub (SPA + dashboard)
 Host(`scraper.asepharyana.my.id`) || Host(`api.asepharyana.my.id`) → scraper-api
+   │
+   ├─ hub (Next.js, port 3000)
+   │   ├─ / — Portfolio SPA
+   │   ├─ /dashboard — Ops dashboard (client-side, auto-refresh 15s)
+   │   ├─ /api/dashboard — JSON: Docker containers, Jaeger traces, Prometheus metrics
+   │   └─ Docker socket mounted (:ro) for container discovery
    │
    ▼ Service load balancer
 http://scraper-api:4091
@@ -59,12 +66,13 @@ Semua service berjalan dalam satu Docker Compose project bernama `compose` dan b
 
 | File | Service | Peran |
 |------|---------|-------|
-| `traefik.yml` | `traefik` | Reverse proxy, TLS termination, middleware |
+| `traefik.yml` | `traefik` | Reverse proxy + TLS + metrics Prometheus |
 | `shared.yml` | `redis` | Cache, session store, backend Dapr pub/sub & state |
 | `nats.yml` | `nats` | Message broker + JetStream persistent streaming |
 | `dapr.yml` | `dapr-placement` | Koordinasi actor placement untuk sidecar Dapr |
 | `scraper.yml` | `scraper-api` + `scraper-api-dapr` | Aplikasi Rust + sidecar Dapr |
-| `hub.yml` | `hub` | Next.js SPA portfolio |
+| `hub.yml` | `hub` | Next.js SPA portfolio + dashboard + Docker socket |
+| `observability.yml` | `otel-collector`, `jaeger`, `prometheus`, `node-exporter` | Tracing, metrics, observability |
 
 ### Dapr Sidecar Pattern
 
@@ -93,6 +101,44 @@ Komponen Dapr:
 |----------|------|---------|
 | `pubsub` | `pubsub.redis` | `redis:6379` |
 | `statestore` | `state.redis` | `redis:6379` (prefix `dapr`) |
+
+### Monitoring & Auto-Discovery
+
+#### Prometheus Docker Auto-Discovery
+
+Prometheus menggunakan `docker_sd_configs` untuk auto-detect container yang perlu di-scrape. Cukup tambah label pada container:
+
+```yaml
+labels:
+  - 'prometheus.io/scrape=true'
+  - 'prometheus.io/port=8080'       # port metrics endpoint
+  - 'prometheus.io/path=/metrics'   # optional, default /metrics
+```
+
+Prometheus akan auto-detect dan mulai scrape container dalam 15 detik.
+
+#### Traefik Metrics
+
+Traefik mengekspos metrics Prometheus di port 8080 (`--metrics.prometheus=true`). Metrics yang tersedia:
+
+| Metric | Query untuk dashboard |
+|--------|----------------------|
+| Request rate | `sum(rate(traefik_service_requests_total[1m]))` |
+| Latency | `avg(traefik_service_request_duration_seconds_sum / traefik_service_request_duration_seconds_count) * 1000` |
+| Error rate | `sum(rate(traefik_service_requests_total{code=~"5.."}[1m]))` |
+
+Dashboard di `/api/dashboard` returns node metrics + Traefik range data untuk 4 sparkline charts (RPS, latency, errors, trace volume).
+
+#### Docker Socket Access
+
+Container yang perlu akses Docker socket (`/var/run/docker.sock`) harus punya group docker (GID 988):
+
+```yaml
+volumes:
+  - /var/run/docker.sock:/var/run/docker.sock:ro
+group_add:
+  - '988'
+```di compose atau `--group-add 988` via CLI. Berlaku untuk `hub` (container list) dan `prometheus` (Docker SD).
 
 ### NATS + JetStream
 
@@ -179,9 +225,13 @@ Domain routing:
 
 | Subdomain | Service | URL Backend |
 |-----------|---------|-------------|
+| `asepharyana.my.id` (root) | Hub SPA + dashboard | `http://hub:3000` |
+| `www.*` | Hub (alias) | `http://hub:3000` |
+| `hub.*` | Hub (alias) | `http://hub:3000` |
 | `scraper.*` | Scraper API | `http://scraper-api:4091` |
 | `api.*` | Scraper API (alias) | `http://scraper-api:4091` |
 | `traefik.*` | Traefik Dashboard | `api@internal` |
+| `jaeger.*` | Jaeger UI | `http://jaeger:16686` |
 
 Semua domain tersedia di:
 - `<service>.asepharyana.my.id`

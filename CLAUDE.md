@@ -29,11 +29,19 @@ asepharyana-hub/
   - `apps/scraper` → `asepharyana/asepharyana-hub-scraper`.
 
 ### Infrastructure Stack
-- **Traefik v3.6** — reverse proxy, TLS termination, middleware chain (rate-limit, headers, buffer, block-sensitive-paths)
+- **Traefik v3.6** — reverse proxy, TLS termination, middleware chain, Prometheus metrics (`--metrics.prometheus=true`)
 - **NATS + JetStream** — message broker with persistent streaming
 - **Dapr** — sidecar runtime (pub/sub abstraction, state management, service invocation)
 - **Redis (Alpine)** — cache, session store, Dapr state store & pub/sub backend
+- **Prometheus** — metrics backend with Docker service discovery (`docker_sd_configs`). Auto-discovers containers with `prometheus.io/scrape=true` label.
+- **Jaeger** — distributed tracing backend (all-in-one), OTLP receiver
 - **Tailscale** — secure overlay network between VPS nodes (PostgreSQL on `imrnes`, containers on `orangevps`)
+
+### Monitoring
+- **Hub dashboard** at `/dashboard` (Next.js client page, auto-refresh 15s)
+- **Dashboard API** at `/api/dashboard` — returns JSON with Docker containers, Jaeger traces, Prometheus metrics (RPS, latency, errors, node CPU/RAM/Disk)
+- **Docker socket** mounted on `hub` container (`--group-add 988`) for container discovery
+- **Prometheus** auto-scrapes Traefik for per-service request metrics
 
 ### Networking
 - All containers join `app-shared-net` (external Docker bridge network). Service discovery via Docker DNS (container name aliases).
