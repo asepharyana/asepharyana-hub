@@ -11,6 +11,8 @@ services:
       - ../../.env
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
+    group_add:
+      - '988'
 
 networks:
   app-shared-net:
