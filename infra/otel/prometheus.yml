@@ -13,20 +13,21 @@ scrape_configs:
             values:
               - prometheus.io/scrape=true
     relabel_configs:
-      - source_labels: [__meta_docker_container_name]
-        target_label: container
-        regex: '/(.*)'
-        replacement: '${1}'
-      - source_labels: [__meta_docker_container_label_prometheus_io_port]
-        regex: '(.+)'
-        target_label: __metrics_path__
-        replacement: '/metrics'
+      # Address: use container name + label port (Docker DNS resolves names)
+      - source_labels: [__meta_docker_container_name, __meta_docker_container_label_prometheus_io_port]
+        regex: '/(.*);(\d+)'
+        replacement: '${1}:${2}'
+        target_label: __address__
+      # Metrics path from label (default /metrics)
       - source_labels: [__meta_docker_container_label_prometheus_io_path]
         regex: '(.+)'
         target_label: __metrics_path__
         replacement: '${1}'
-      - source_labels: [__address__]
-        target_label: instance
+      # Container name label
+      - source_labels: [__meta_docker_container_name]
+        regex: '/(.*)'
+        replacement: '${1}'
+        target_label: container
 
   # ── OTel Collector ──
   - job_name: 'otel-collector'
