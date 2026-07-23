@@ -1,7 +1,7 @@
 services:
   hub:
     container_name: hub
-    image: ghcr.io/asepharyana/asepharyana-hub/hub:sha-69cae1e
+    image: ghcr.io/asepharyana/asepharyana-hub/hub:sha-93d053b
     restart: always
     networks:
       app-shared-net:
