@@ -14,6 +14,7 @@ COPY --from=builder /app/.next ./.next
 COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/public ./public
 COPY --from=builder /app/package.json ./
+RUN rm -rf .next/cache && chown -R appuser:appgroup .next
 USER appuser
 EXPOSE 3000
 ENV PORT=3000 NODE_ENV=production
