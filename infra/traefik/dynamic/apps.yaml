@@ -30,22 +30,6 @@ http:
         - common-chain@file
       service: jaeger-service
 
-  services:
-    hub-service:
-      loadBalancer:
-        servers:
-          - url: 'http://hub:3000'
-
-    scraper-service:
-      loadBalancer:
-        servers:
-          - url: 'http://scraper-api:4091'
-
-    jaeger-service:
-      loadBalancer:
-        servers:
-          - url: 'http://jaeger:16686'
-
     # ── LSAR Frontend ──
     lidm-frontend:
       rule: 'Host(`lidm.asepharyana.my.id`)'
@@ -67,6 +51,21 @@ http:
       service: lidm-backend-service
 
   services:
+    hub-service:
+      loadBalancer:
+        servers:
+          - url: 'http://hub:3000'
+
+    scraper-service:
+      loadBalancer:
+        servers:
+          - url: 'http://scraper-api:4091'
+
+    jaeger-service:
+      loadBalancer:
+        servers:
+          - url: 'http://jaeger:16686'
+
     lidm-frontend-service:
       loadBalancer:
         servers:
