@@ -208,7 +208,7 @@ jobs:
           SVC_NAME="${{ matrix.id }}"
           SHORT=${GITHUB_SHA:0:7}
           echo "image=${REGISTRY}/${IMAGE_NAME_PREFIX}/${SVC_NAME}" >> $GITHUB_OUTPUT
-          echo "tags=${REGISTRY}/${IMAGE_NAME_PREFIX}/${SVC_NAME}:latest,${REGISTRY}/${IMAGE_NAME_PREFIX}/${SVC_NAME}:sha-${SHORT}" >> $GITHUB_OUTPUT
+          echo "tags=${REGISTRY}/${IMAGE_NAME_PREFIX}/${SVC_NAME}:sha-${SHORT}" >> $GITHUB_OUTPUT
           echo "cache-registry=${REGISTRY}/${IMAGE_NAME_PREFIX}/${SVC_NAME}:buildcache" >> $GITHUB_OUTPUT
           case "$SVC_NAME" in
             "scraper-api")    echo "dockerfile=infra/docker/scraper.Dockerfile" >> $GITHUB_OUTPUT ;;
