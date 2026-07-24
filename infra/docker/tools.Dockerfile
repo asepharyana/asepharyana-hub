@@ -1,7 +1,7 @@
 # ============================================================
 # Stage 1: Build Rust Backend (with cargo-chef caching)
 # ============================================================
-FROM lukemathwalker/cargo-chef:latest-rust-1.85.0 AS chef
+FROM lukemathwalker/cargo-chef:latest-rust-1.89.0 AS chef
 WORKDIR /app
 
 FROM chef AS planner
