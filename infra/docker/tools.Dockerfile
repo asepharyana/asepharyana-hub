@@ -54,6 +54,9 @@ WORKDIR /app
 COPY --from=builder /app/tools-gateway-bin /app/gateway
 COPY --from=builder /app/tools-workers-bin /app/workers
 
+# Copy bun binary from frontend builder (needed to run Next.js server)
+COPY --from=frontend-builder /usr/local/bin/bun /usr/local/bin/bun
+
 # Copy Next.js build
 COPY --from=frontend-builder /app/.next /app/.next
 COPY --from=frontend-builder /app/public /app/public
