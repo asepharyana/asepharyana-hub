@@ -17,7 +17,7 @@ RUN --mount=type=cache,target=/usr/local/cargo/registry \
 COPY apps/tools/backend/ .
 RUN --mount=type=cache,target=/usr/local/cargo/registry \
     --mount=type=cache,target=/app/target \
-    cargo build --release --bin tools-gateway --bin tools-workers && \
+    cargo build --release --features tesseract --bin tools-gateway --bin tools-workers && \
     cp /app/target/release/tools-gateway /app/tools-gateway-bin && \
     cp /app/target/release/tools-workers /app/tools-workers-bin
 
