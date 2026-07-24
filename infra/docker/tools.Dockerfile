@@ -50,9 +50,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 WORKDIR /app
 
-# Copy Rust binaries
-COPY --from=builder /app/target/release/tools-gateway /app/gateway
-COPY --from=builder /app/target/release/tools-workers /app/workers
+# Copy Rust binaries (cp'd from cache mount in builder stage)
+COPY --from=builder /app/gateway /app/gateway
+COPY --from=builder /app/workers /app/workers
 
 # Copy Next.js build
 COPY --from=frontend-builder /app/.next /app/.next
