@@ -1,8 +1,7 @@
 # ============================================================
-# Stage 1: Build Rust Backend
+# Stage 1: Build Rust Backend (with cargo-chef caching)
 # ============================================================
-FROM rust:1.85-slim-bookworm AS chef
-RUN cargo install cargo-chef
+FROM lukemathwalker/cargo-chef:latest-rust-1.85.0 AS chef
 WORKDIR /app
 
 FROM chef AS planner
@@ -11,10 +10,16 @@ RUN cargo chef prepare --recipe-path recipe.json
 
 FROM chef AS builder
 COPY --from=planner /app/recipe.json recipe.json
-RUN cargo chef cook --release --recipe-path recipe.json
+RUN --mount=type=cache,target=/usr/local/cargo/registry \
+    --mount=type=cache,target=/app/target \
+    cargo chef cook --release --recipe-path recipe.json
 
 COPY apps/tools/backend/ .
-RUN cargo build --release --bin tools-gateway --bin tools-workers
+RUN --mount=type=cache,target=/usr/local/cargo/registry \
+    --mount=type=cache,target=/app/target \
+    cargo build --release --bin tools-gateway --bin tools-workers && \
+    cp /app/target/release/tools-gateway /app/gateway && \
+    cp /app/target/release/tools-workers /app/workers
 
 # ============================================================
 # Stage 2: Build Next.js Frontend
@@ -22,9 +27,9 @@ RUN cargo build --release --bin tools-gateway --bin tools-workers
 FROM oven/bun:1.3 AS frontend-builder
 WORKDIR /app
 
-# Copy package files
-COPY apps/tools/frontend/package.json ./
-RUN bun install
+# Copy package files first for layer caching
+COPY apps/tools/frontend/package.json apps/tools/frontend/bun.lock ./
+RUN bun install --frozen-lockfile
 
 COPY apps/tools/frontend/ .
 RUN bun run build
