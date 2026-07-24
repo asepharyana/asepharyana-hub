@@ -54,7 +54,7 @@ http:
     tools-service:
       loadBalancer:
         servers:
-          - url: 'http://tools:3001'
+          - url: 'http://tools:3000'
 
     jaeger-service:
       loadBalancer:
