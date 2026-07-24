@@ -54,6 +54,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     tesseract-ocr-osd \
     ca-certificates \
     fonts-dejavu-core \
+    wget \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app

@@ -25,7 +25,7 @@ services:
     ports:
       - "3002:3001"
     healthcheck:
-      test: ['CMD-SHELL', 'curl -so /dev/null --connect-timeout 5 http://localhost:3001/health || test $? -eq 22']
+      test: ['CMD-SHELL', 'wget -q -O /dev/null http://localhost:3001/health || exit 1']
       interval: 30s
       timeout: 10s
       retries: 5
