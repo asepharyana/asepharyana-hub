@@ -1,0 +1,32 @@
+[package]
+name = "tools-workers"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+tools-common = { path = "../common" }
+
+tokio.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+uuid.workspace = true
+chrono.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true
+async-nats.workspace = true
+redis.workspace = true
+thiserror.workspace = true
+anyhow.workspace = true
+image.workspace = true
+imageproc.workspace = true
+nalgebra = "0.32"
+lopdf.workspace = true
+rayon = "1"
+futures = "0.3"
+async-trait = "0.1"
+leptess = { version = "0.14", optional = true }
+
+[features]
+default = []
+tesseract = ["leptess"]

@@ -89,7 +89,7 @@ jobs:
             git fetch origin main --depth=1 || true
             
             # Detect changed files before resetting
-            ALL_COMPOSE_FILES="infra/compose/traefik.yml infra/compose/shared.yml infra/compose/scraper.yml infra/compose/hub.yml infra/compose/nats.yml infra/compose/dapr.yml infra/compose/observability.yml"
+            ALL_COMPOSE_FILES="infra/compose/traefik.yml infra/compose/shared.yml infra/compose/scraper.yml infra/compose/hub.yml infra/compose/tools.yml infra/compose/nats.yml infra/compose/dapr.yml infra/compose/observability.yml"
             TRAEFIK_DYNAMIC_DIR="infra/traefik/dynamic"
             
             if git rev-parse HEAD >/dev/null 2>&1; then

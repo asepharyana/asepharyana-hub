@@ -1,0 +1,25 @@
+[package]
+name = "tools-gateway"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+tools-common = { path = "../common" }
+
+axum = { version = "0.8", features = ["multipart", "ws"] }
+tower = "0.5"
+tower-http = { version = "0.6", features = ["cors", "trace", "limit"] }
+tokio.workspace = true
+tokio-util = { version = "0.7", features = ["io"] }
+serde.workspace = true
+serde_json.workspace = true
+uuid.workspace = true
+chrono.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true
+async-nats.workspace = true
+redis.workspace = true
+thiserror.workspace = true
+anyhow.workspace = true
+futures = "0.3"

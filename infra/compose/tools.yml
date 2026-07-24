@@ -1,0 +1,45 @@
+services:
+  tools:
+    container_name: tools
+    image: ghcr.io/asepharyana/asepharyana-hub/tools:sha-xxxxxxx
+    restart: always
+    networks:
+      app-shared-net:
+        aliases:
+          - tools
+    env_file:
+      - ../../.env
+    environment:
+      - REDIS_URL=redis://redis:6379
+      - NATS_URL=nats://nats:4222
+      - STORAGE_PATH=/data/tools
+      - GATEWAY_PORT=3001
+      - TOOLS_WORKER_CONCURRENCY=4
+      - RUST_LOG=info
+    volumes:
+      - tools_data:/data/tools
+    ports:
+      - "3001:3001"
+    depends_on:
+      redis:
+        condition: service_started
+      nats:
+        condition: service_started
+    labels:
+      - 'prometheus.io/scrape=true'
+      - 'prometheus.io/port=3001'
+      - 'prometheus.io/path=/metrics'
+    healthcheck:
+      test: ['CMD-SHELL', 'curl -so /dev/null --connect-timeout 5 http://localhost:3001/health || test $? -eq 22']
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+
+volumes:
+  tools_data:
+
+networks:
+  app-shared-net:
+    name: app-shared-net
+    external: true

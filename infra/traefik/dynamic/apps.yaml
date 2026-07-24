@@ -20,6 +20,16 @@ http:
         - common-chain@file
       service: scraper-service
 
+    # ── Tools (Document Scanner & Media Processing) ──
+    tools:
+      rule: 'Host(`tools.asepharyana.my.id`) || Host(`tools.asepharyana.web.id`)'
+      entryPoints:
+        - websecure
+      tls: {}
+      middlewares:
+        - common-chain@file
+      service: tools-service
+
     # ── Jaeger UI ──
     jaeger:
       rule: 'Host(`jaeger.asepharyana.my.id`) || Host(`jaeger.asepharyana.web.id`)'
@@ -40,6 +50,11 @@ http:
       loadBalancer:
         servers:
           - url: 'http://scraper-api:4091'
+
+    tools-service:
+      loadBalancer:
+        servers:
+          - url: 'http://tools:3001'
 
     jaeger-service:
       loadBalancer:
