@@ -197,6 +197,11 @@ jobs:
             git fetch origin "$DISPATCH_SHA"
             git checkout "$DISPATCH_SHA"
           fi
+          if [ "$EVENT_NAME" = "repository_dispatch" ] && [ -n "${DISPATCH_SHA:-}" ]; then
+            cd "$SUBMODULE_PATH"
+            git fetch origin "$DISPATCH_SHA"
+            git checkout "$DISPATCH_SHA"
+          fi
 
       - uses: docker/login-action@v4
         with:
