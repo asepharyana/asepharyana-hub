@@ -18,13 +18,6 @@ services:
       - RUST_LOG=info
     volumes:
       - tools_data:/data/tools
-    ports:
-      - "3001:3001"
-    depends_on:
-      redis:
-        condition: service_started
-      nats:
-        condition: service_started
     labels:
       - 'prometheus.io/scrape=true'
       - 'prometheus.io/port=3001'
