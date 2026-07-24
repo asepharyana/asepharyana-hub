@@ -18,8 +18,8 @@ COPY apps/tools/backend/ .
 RUN --mount=type=cache,target=/usr/local/cargo/registry \
     --mount=type=cache,target=/app/target \
     cargo build --release --bin tools-gateway --bin tools-workers && \
-    cp /app/target/release/tools-gateway /app/gateway && \
-    cp /app/target/release/tools-workers /app/workers
+    cp /app/target/release/tools-gateway /app/tools-gateway-bin && \
+    cp /app/target/release/tools-workers /app/tools-workers-bin
 
 # ============================================================
 # Stage 2: Build Next.js Frontend
@@ -51,8 +51,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 WORKDIR /app
 
 # Copy Rust binaries (cp'd from cache mount in builder stage)
-COPY --from=builder /app/gateway /app/gateway
-COPY --from=builder /app/workers /app/workers
+COPY --from=builder /app/tools-gateway-bin /app/gateway
+COPY --from=builder /app/tools-workers-bin /app/workers
 
 # Copy Next.js build
 COPY --from=frontend-builder /app/.next /app/.next
