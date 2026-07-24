@@ -1,7 +1,7 @@
 services:
   scraper-api:
     container_name: scraper-api
-    image: ghcr.io/asepharyana/asepharyana-hub/scraper-api:sha-e38fe75
+    image: ghcr.io/asepharyana/asepharyana-hub/scraper-api:sha-c5a7ae2
     restart: always
     depends_on:
       nats:
