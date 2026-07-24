@@ -37,7 +37,7 @@ jobs:
       scraper-api: ${{ steps.filter.outputs['scraper-api'] == 'true' || steps.dispatch.outputs['scraper-api'] == 'true' || github.event_name == 'workflow_dispatch' }}
       hub: ${{ steps.filter.outputs['hub'] == 'true' || steps.dispatch.outputs['hub'] == 'true' || github.event_name == 'workflow_dispatch' }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
           submodules: false
           fetch-depth: 2
@@ -175,7 +175,7 @@ jobs:
       contents: read
       packages: write
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
           submodules: false
 
@@ -243,7 +243,7 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
           submodules: false
           token: ${{ secrets.GITHUB_TOKEN }}
