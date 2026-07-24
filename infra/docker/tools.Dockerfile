@@ -6,14 +6,14 @@ RUN cargo install cargo-chef
 WORKDIR /app
 
 FROM chef AS planner
-COPY backend/ .
+COPY apps/tools/backend/ .
 RUN cargo chef prepare --recipe-path recipe.json
 
 FROM chef AS builder
 COPY --from=planner /app/recipe.json recipe.json
 RUN cargo chef cook --release --recipe-path recipe.json
 
-COPY backend/ .
+COPY apps/tools/backend/ .
 RUN cargo build --release --bin tools-gateway --bin tools-workers
 
 # ============================================================
@@ -21,9 +21,12 @@ RUN cargo build --release --bin tools-gateway --bin tools-workers
 # ============================================================
 FROM oven/bun:1.3 AS frontend-builder
 WORKDIR /app
-COPY frontend/package.json frontend/bun.lock ./
+
+# Copy package files first for layer caching
+COPY apps/tools/frontend/package.json apps/tools/frontend/bun.lock ./
 RUN bun install --frozen-lockfile || bun install
-COPY frontend/ .
+
+COPY apps/tools/frontend/ .
 RUN bun run build
 
 # ============================================================
@@ -56,6 +59,10 @@ COPY --from=frontend-builder /app/next.config.ts /app/next.config.ts
 # Create temp storage directory
 RUN mkdir -p /data/tools && chmod 1777 /data/tools
 
+# Copy entrypoint
+COPY apps/tools/scripts/entrypoint.sh /app/entrypoint.sh
+RUN chmod +x /app/entrypoint.sh
+
 # Environment
 ENV TESSDATA_PREFIX=/usr/share/tesseract-ocr/5/tessdata
 ENV STORAGE_PATH=/data/tools
@@ -65,9 +72,5 @@ ENV RUST_LOG=info
 
 # Expose port
 EXPOSE 3001
-
-# Copy entrypoint
-COPY scripts/entrypoint.sh /app/entrypoint.sh
-RUN chmod +x /app/entrypoint.sh
 
 CMD ["/app/entrypoint.sh"]

@@ -4,3 +4,6 @@
 [submodule "apps/hub"]
 	path = apps/hub
 	url = https://github.com/asepharyana/asepharyana-hub-hub.git
+[submodule "apps/tools"]
+	path = apps/tools
+	url = https://github.com/asepharyana/asepharyana-hub-tools.git
