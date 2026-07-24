@@ -22,9 +22,9 @@ RUN cargo build --release --bin tools-gateway --bin tools-workers
 FROM oven/bun:1.3 AS frontend-builder
 WORKDIR /app
 
-# Copy package files first for layer caching
-COPY apps/tools/frontend/package.json apps/tools/frontend/bun.lock ./
-RUN bun install --frozen-lockfile || bun install
+# Copy package files
+COPY apps/tools/frontend/package.json ./
+RUN bun install
 
 COPY apps/tools/frontend/ .
 RUN bun run build
