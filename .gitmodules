@@ -7,6 +7,6 @@
 [submodule "apps/tools"]
 	path = apps/tools
 	url = https://github.com/asepharyana/asepharyana-hub-tools.git
-[submodule "apps/hub-guide"]
-	path = apps/hub-guide
+[submodule "plugins/hub-guide"]
+	path = plugins/hub-guide
 	url = https://github.com/asepharyana/asepharyana-hub-hub-guide.git
