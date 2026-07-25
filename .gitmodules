@@ -10,3 +10,6 @@
 [submodule "apps/rust-auth"]
 	path = apps/rust-auth
 	url = https://github.com/asepharyana/asepharyana-hub-rust-auth.git
+[submodule "apps/llm-api"]
+	path = apps/llm-api
+	url = https://github.com/asepharyana/asepharyana-hub-llm-api.git
