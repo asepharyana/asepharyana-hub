@@ -20,6 +20,16 @@ http:
         - common-chain@file
       service: scraper-service
 
+    # ── LLM API (MiniCPM-V) ──
+    llm-api:
+      rule: 'Host(`ai.asepharyana.my.id`) || Host(`ai.asepharya.web.id`)'
+      entryPoints:
+        - websecure
+      tls: {}
+      middlewares:
+        - common-chain@file
+      service: llm-api-service
+
     # ── Tools (Document Scanner & Media Processing) ──
     tools:
       rule: 'Host(`tools.asepharyana.my.id`) || Host(`tools.asepharyana.web.id`)'
@@ -55,6 +65,11 @@ http:
       loadBalancer:
         servers:
           - url: 'http://tools:3000'
+
+    llm-api-service:
+      loadBalancer:
+        servers:
+          - url: 'http://llm-api:8080'
 
     jaeger-service:
       loadBalancer:

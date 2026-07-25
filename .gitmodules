@@ -10,3 +10,6 @@
 [submodule "plugins/hub-guide"]
 	path = plugins/hub-guide
 	url = https://github.com/asepharyana/asepharyana-hub-hub-guide.git
+[submodule "apps/llm-api"]
+	path = apps/llm-api
+	url = https://github.com/asepharyana/llm-api.git
