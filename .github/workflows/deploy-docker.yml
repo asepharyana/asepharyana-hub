@@ -202,22 +202,21 @@ jobs:
             
             echo "🧹 Removing stale target containers by container_name..."
             # Extract all explicitly defined container_names from compose files and remove them to prevent conflicts
+            remove_stale_containers() {
+              local files="$1"
+              local f
+              for f in $files; do
+                if [ -f "$f" ]; then
+                  grep "container_name:" "$f" | awk '{print $2}' | while read -r cname; do
+                    docker rm -f "$cname" >/dev/null 2>&1 || true
+                  done
+                fi
+              done
+            }
             if [ -n "$TARGET_COMPOSE" ]; then
-              for f in $TARGET_COMPOSE; do
-                if [ -f "$f" ]; then
-                  grep "container_name:" "$f" | awk '{print $2}' | while read -r cname; do
-                    docker rm -f "$cname" >/dev/null 2>&1 || true
-                  done
-                fi
-              done
+              remove_stale_containers "$TARGET_COMPOSE"
             else
-              for f in $ALL_COMPOSE_FILES; do
-                if [ -f "$f" ]; then
-                  grep "container_name:" "$f" | awk '{print $2}' | while read -r cname; do
-                    docker rm -f "$cname" >/dev/null 2>&1 || true
-                  done
-                fi
-              done
+              remove_stale_containers "$ALL_COMPOSE_FILES"
             fi
 
             echo "🆙 Starting services..."
@@ -234,21 +233,3 @@ jobs:
               echo "✅ Traefik reload signal sent"
             fi
           EOF
-
-#       - name: Restart coolify-proxy (delay 1 min)
-#         env:
-#           SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
-#           VPS_HOST: ${{ secrets.VPS_HOST }}
-#           VPS_USER: ${{ secrets.VPS_USER }}
-#         run: |
-#           mkdir -p ~/.ssh
-#           echo "$SSH_PRIVATE_KEY" > ~/.ssh/id_rsa
-#           chmod 600 ~/.ssh/id_rsa
-#           ssh-keyscan -H "$VPS_HOST" >> ~/.ssh/known_hosts
-#
-#           echo "⏳ Waiting 60s for containers to settle before restarting proxy..."
-#           sleep 60
-#
-#           echo "🔄 Restarting coolify-proxy..."
-#           ssh "${VPS_USER}@${VPS_HOST}" "docker restart coolify-proxy"
-#           echo "✅ coolify-proxy restarted."

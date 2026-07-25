@@ -70,8 +70,6 @@ jobs:
           echo "llm-api=$(changed '^(apps/llm-api(/|$)|\.github/workflows/docker-build-push\.yml$|infra/docker/llm-api\.Dockerfile$|\.gitmodules$')" >> "$GITHUB_OUTPUT"
 
       - name: Parse repository_dispatch payload
-
-      - name: Parse repository_dispatch payload
         id: dispatch
         if: github.event_name == 'repository_dispatch'
         env:
@@ -143,7 +141,7 @@ jobs:
             "elysia-api") REPO="https://github.com/asepharyana/asepharyana-hub-elysia.git" ;;
             "react-web") REPO="https://github.com/asepharyana/asepharyana-hub-react.git" ;;
             "rust-auth") REPO="https://github.com/asepharyana/asepharyana-hub-rust-auth.git" ;;
-            {indent}"llm-api") REPO="https://github.com/asepharyana/asepharyana-hub-llm-api.git" ;;
+            "llm-api") REPO="https://github.com/asepharyana/asepharyana-hub-llm-api.git" ;;
             *)
               echo "::error::Unsupported service '$SERVICE'"
               exit 1
