@@ -164,7 +164,7 @@ jobs:
               TARGET_SERVICES=""
               for f in $TARGET_COMPOSE; do
                 if [ -f "$f" ]; then
-                  svcs=$(grep -E '^\s{2}[a-zA-Z0-9_-]+:' "$f" | grep -v 'app-shared-net' | sed 's/://g' | xargs)
+                  svcs=$($COMPOSE_CMD -f "$f" config --services 2>/dev/null | tr '\n' ' ' | xargs)
                   TARGET_SERVICES="$TARGET_SERVICES $svcs"
                 fi
               done
