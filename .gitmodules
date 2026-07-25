@@ -9,7 +9,7 @@
 	url = https://github.com/asepharyana/asepharyana-hub-tools.git
 [submodule "plugins/hub-guide"]
 	path = plugins/hub-guide
-	url = https://github.com/asepharyana/hub-guide.git
+	url = https://github.com/asepharyana/asepharyana-hub-guide.git
 [submodule "apps/llm-api"]
 	path = apps/llm-api
 	url = https://github.com/asepharyana/llm-api.git
