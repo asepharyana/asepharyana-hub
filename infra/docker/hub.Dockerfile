@@ -8,7 +8,7 @@ RUN bun run build
 
 # ── Runtime ──
 FROM oven/bun:1.2 AS runtime
-RUN addgroup -S appgroup && adduser -S appuser -G appgroup
+RUN addgroup --system appgroup && adduser --system appuser --ingroup appgroup
 WORKDIR /app
 COPY --from=builder /app/.next ./.next
 COPY --from=builder /app/node_modules ./node_modules
