@@ -12,4 +12,4 @@
 	url = https://github.com/asepharyana/asepharyana-hub-guide.git
 [submodule "apps/llm-api"]
 	path = apps/llm-api
-	url = https://github.com/asepharyana/llm-api.git
+	url = https://github.com/asepharyana/asepharyana-hub-llm-api.git

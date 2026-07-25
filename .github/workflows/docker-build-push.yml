@@ -8,6 +8,7 @@ on:
       - 'apps/scraper/**'
       - 'apps/hub/**'
       - 'apps/tools/**'
+      - 'apps/llm-api/**'
       - '.github/workflows/docker-build-push.yml'
       - 'infra/**'
       - '!infra/compose/**'
@@ -38,6 +39,7 @@ jobs:
       scraper-api: ${{ steps.filter.outputs['scraper-api'] == 'true' || steps.dispatch.outputs['scraper-api'] == 'true' || github.event_name == 'workflow_dispatch' }}
       hub: ${{ steps.filter.outputs['hub'] == 'true' || steps.dispatch.outputs['hub'] == 'true' || github.event_name == 'workflow_dispatch' }}
       tools: ${{ steps.filter.outputs['tools'] == 'true' || steps.dispatch.outputs['tools'] == 'true' || github.event_name == 'workflow_dispatch' }}
+      llm-api: ${{ steps.filter.outputs['llm-api'] == 'true' || steps.dispatch.outputs['llm-api'] == 'true' || github.event_name == 'workflow_dispatch' }}
     steps:
       - uses: actions/checkout@v7
         with:
@@ -66,6 +68,7 @@ jobs:
           echo "scraper-api=$(changed '^(apps/scraper(/|$)|\.github/workflows/docker-build-push\.yml$|infra/docker/scraper\.Dockerfile$)')" >> "$GITHUB_OUTPUT"
           echo "hub=$(changed '^(apps/hub(/|$)|\.github/workflows/docker-build-push\.yml$|infra/docker/hub\.Dockerfile$)')" >> "$GITHUB_OUTPUT"
           echo "tools=$(changed '^(apps/tools(/|$)|\.github/workflows/docker-build-push\.yml$|infra/docker/tools\.Dockerfile$)')" >> "$GITHUB_OUTPUT"
+          echo "llm-api=$(changed '^(apps/llm-api(/|$)|\.github/workflows/docker-build-push\.yml$|infra/docker/llm-api\.Dockerfile$)')" >> "$GITHUB_OUTPUT"
 
       - name: Parse repository_dispatch payload
         id: dispatch
@@ -87,7 +90,7 @@ jobs:
           fi
 
           case "$SERVICE" in
-            scraper-api|hub|tools) ;;
+            scraper-api|hub|tools|llm-api) ;;
             *)
               exit 1
               ;;
@@ -95,7 +98,7 @@ jobs:
 
           if ! [[ "$SHA" =~ ^[0-9a-fA-F]{40}$ ]]; then echo "::error::Invalid sha '$SHA'. Expected 40 hex characters"; fi
 
-          SERVICES=(scraper-api hub tools)
+          SERVICES=(scraper-api hub tools llm-api)
           for svc in "${SERVICES[@]}"; do
             if [ "$SERVICE" = "$svc" ]; then
               echo "${svc}=true" >> "$GITHUB_OUTPUT"
@@ -115,6 +118,7 @@ jobs:
           if [ "${{ steps.filter.outputs['scraper-api'] == 'true' || steps.dispatch.outputs['scraper-api'] == 'true' || github.event_name == 'workflow_dispatch' }}" == "true" ]; then add_service "scraper-api" "docker-scraper" "apps/scraper"; fi
           if [ "${{ steps.filter.outputs['hub'] == 'true' || steps.dispatch.outputs['hub'] == 'true' || github.event_name == 'workflow_dispatch' }}" == "true" ]; then add_service "hub" "docker-hub" "apps/hub"; fi
           if [ "${{ steps.filter.outputs['tools'] == 'true' || steps.dispatch.outputs['tools'] == 'true' || github.event_name == 'workflow_dispatch' }}" == "true" ]; then add_service "tools" "docker-tools" "apps/tools"; fi
+          if [ "${{ steps.filter.outputs['llm-api'] == 'true' || steps.dispatch.outputs['llm-api'] == 'true' || github.event_name == 'workflow_dispatch' }}" == "true" ]; then add_service "llm-api" "docker-llm-api" "apps/llm-api"; fi
 
           JSON_ARRAY="[$(IFS=,; echo "${SERVICES[*]}")]"
           echo "matrix=$JSON_ARRAY" >> $GITHUB_OUTPUT
@@ -136,6 +140,7 @@ jobs:
             "scraper-api") REPO="https://github.com/asepharyana/asepharyana-hub-scraper.git" ;;
             "hub") REPO="https://github.com/asepharyana/asepharyana-hub-hub.git" ;;
             "tools") echo "tools is built from monorepo, no submodule wait needed"; exit 0 ;;
+            "llm-api") REPO="https://github.com/asepharyana/asepharyana-hub-llm-api.git" ;;
             *)
               echo "::error::Unsupported service '$SERVICE'"
               exit 1
@@ -224,6 +229,7 @@ jobs:
             "scraper-api")    echo "dockerfile=infra/docker/scraper.Dockerfile" >> $GITHUB_OUTPUT ;;
             "hub")            echo "dockerfile=infra/docker/hub.Dockerfile" >> $GITHUB_OUTPUT ;;
             "tools")          echo "dockerfile=infra/docker/tools.Dockerfile" >> $GITHUB_OUTPUT ;;
+            "llm-api")        echo "dockerfile=infra/docker/llm-api.Dockerfile" >> $GITHUB_OUTPUT ;;
           esac
 
       - name: Build and Push Docker image
@@ -270,11 +276,13 @@ jobs:
           SERVICES["scraper-api"]="scraper.yml"
           SERVICES["hub"]="hub.yml"
           SERVICES["tools"]="tools.yml"
+          SERVICES["llm-api"]="llm-api.yml"
 
           declare -A PATHS
           PATHS["scraper-api"]="apps/scraper"
           PATHS["hub"]="apps/hub"
           PATHS["tools"]="apps/tools"
+          PATHS["llm-api"]="apps/llm-api"
 
           # Use git config for possible commits
           git config --local user.email "action@github.com"
@@ -285,6 +293,7 @@ jobs:
             if [ "${{ needs.changes.outputs['scraper-api'] }}" == "true" ] && [ "$id" == "scraper-api" ]; then SHOULD_HAVE_RUN=true; fi
             if [ "${{ needs.changes.outputs['hub'] }}" == "true" ] && [ "$id" == "hub" ]; then SHOULD_HAVE_RUN=true; fi
             if [ "${{ needs.changes.outputs['tools'] }}" == "true" ] && [ "$id" == "tools" ]; then SHOULD_HAVE_RUN=true; fi
+            if [ "${{ needs.changes.outputs['llm-api'] }}" == "true" ] && [ "$id" == "llm-api" ]; then SHOULD_HAVE_RUN=true; fi
 
             if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then SHOULD_HAVE_RUN=true; fi
 

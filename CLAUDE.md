@@ -26,7 +26,9 @@ asepharyana-hub/
 - Submodule pointers are updated by CI/CD (via `repository_dispatch` or manual commit).
 - Current submodules:
   - `apps/hub` → `asepharyana/asepharyana-hub-hub`
-  - `apps/scraper` → `asepharyana/asepharyana-hub-scraper`.
+  - `apps/scraper` → `asepharyana/asepharyana-hub-scraper`
+  - `apps/llm-api` → `asepharyana/asepharyana-hub-llm-api`
+  - `apps/tools` → `asepharyana/asepharyana-hub-tools`.
 
 ### Infrastructure Stack
 - **Traefik v3.6** — reverse proxy, TLS termination, middleware chain, Prometheus metrics (`--metrics.prometheus=true`)

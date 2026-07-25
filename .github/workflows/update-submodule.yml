@@ -36,7 +36,7 @@ jobs:
           fi
 
           case "$SERVICE" in
-            scraper-api|hub) ;;
+            scraper-api|hub|llm-api) ;;
             *)
               echo "::error::Unsupported service '$SERVICE'"
               exit 1
@@ -55,6 +55,7 @@ jobs:
           # Map service name to submodule path
           case "$SERVICE" in
             scraper-api) SUBMODULE_PATH="apps/scraper" ;;
+            llm-api)     SUBMODULE_PATH="apps/llm-api" ;;
             *)           SUBMODULE_PATH="apps/${SERVICE}" ;;
           esac
 

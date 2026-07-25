@@ -22,8 +22,9 @@ jobs:
         with:
           languages: rust
 
-      - name: Build Rust project for CodeQL analysis
-        run: cargo build
-        working-directory: apps/scraper
+      - name: Build Rust projects for CodeQL analysis
+        run: |
+          cargo build --manifest-path apps/scraper/Cargo.toml
+          cargo build --manifest-path apps/llm-api/Cargo.toml
 
       - uses: github/codeql-action/analyze@v4
