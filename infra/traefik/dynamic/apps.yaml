@@ -1,3 +1,7 @@
+# ── Traefik dynamic configuration (watched at runtime) ──
+# Routers map host rules to backend services; services resolve via Docker
+# internal DNS (container_name:port).
+
 http:
   routers:
     elysia:
@@ -59,6 +63,7 @@ http:
         Host(`scraper.asepharyana.web.id`) || Host(`api.asepharyana.web.id`)
       service: scraper-service
       tls: {}
+      # ── Backend service definitions ──
   services:
     elysia-service:
       loadBalancer:

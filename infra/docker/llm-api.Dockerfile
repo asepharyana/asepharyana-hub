@@ -1,7 +1,8 @@
 # ── Build stage: cargo-chef ──
 FROM lukemathwalker/cargo-chef:latest-rust-1.89.0 AS chef
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    libclang-dev cmake \
+    libclang-dev \
+    cmake \
     && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 
@@ -23,6 +24,8 @@ RUN --mount=type=cache,target=/usr/local/cargo/registry \
 
 # ── Runtime image ──
 FROM debian:bookworm-slim AS runtime
+# ca-certificates: TLS for API calls  |  curl: healthcheck  |  libssl3: TLS runtime dep
+# libgomp1: OpenMP parallelism for GGUF model inference
 RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates \
     curl \
@@ -30,13 +33,14 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libgomp1 \
     && rm -rf /var/lib/apt/lists/*
 
+# Non-root user for security
 RUN groupadd -g 1001 appgroup && \
     useradd -u 1001 -g appgroup -s /bin/sh appuser
 
 WORKDIR /app
 COPY --from=builder /app/llm-api /app/llm-api
 
-# Model will be mounted at runtime
+# Model volume mount point (provided at runtime)
 RUN mkdir -p /root/models/gguf && chown -R appuser:appgroup /root/models/gguf
 
 USER appuser

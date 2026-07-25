@@ -1,3 +1,7 @@
+# ── llm-api service (Rust GGUF inference) ──
+# Model file is mounted from host; healthcheck tolerates HTTP 404 (exit 22)
+# from curl to confirm the server is alive regardless of endpoint availability.
+
 services:
   llm-api:
     container_name: llm-api

@@ -1,3 +1,7 @@
+# ── TLS certificate configuration ──
+# Certificates are auto-renewed by the cert-manager sidecar.
+# asepharyana.my.id is the default certificate for all routes.
+
 tls:
   certificates:
     - certFile: /etc/traefik/certs/asepharyana.my.id.pem
