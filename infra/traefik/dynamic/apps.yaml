@@ -27,7 +27,7 @@ http:
         - websecure
       tls: {}
       middlewares:
-        - common-chain@file
+        - llm-chain@file
       service: llm-api-service
 
     # ── Tools (Document Scanner & Media Processing) ──

@@ -61,6 +61,14 @@ http:
             - "^/wp-login\\.php"
             - "^/config\\.php"
 
+    # ── LLM Stream Chain (no buffer/compress — SSE needs real-time) ──
+    llm-chain:
+      chain:
+        middlewares:
+          - secure-headers
+          - retry
+          - rate-limit
+
     # ── Common Chain ──
     common-chain:
       chain:
