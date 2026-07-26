@@ -10,7 +10,7 @@ services:
     env_file:
       - ../../.env
     environment:
-      - MODEL_PATH=/models/MiniCPM-V-4.6-Q4_K_M.gguf
+      - MODEL_PATH=/models/MiniCPM5-1B-Claude-Opus-Fable5-V2-Thinking-Q8_0.gguf
       - API_KEY=${LLM_API_KEY:-}
     volumes:
       - /root/models/gguf:/models:ro
