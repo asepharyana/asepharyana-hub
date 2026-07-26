@@ -1,7 +1,7 @@
 services:
   tools:
     container_name: tools
-    image: ghcr.io/asepharyana/asepharyana-hub/tools:sha-e953c3c
+    image: ghcr.io/asepharyana/asepharyana-hub/tools:sha-ac25a51
     restart: always
     networks:
       app-shared-net:
