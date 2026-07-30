@@ -24,11 +24,12 @@
             ] ++ nativeBuildInputs;
 
             buildInputs = with pkgs; [
-              nodejs openssl
+              nodejs openssl stdenv.cc.cc.lib libffi
             ] ++ buildInputs;
 
             LIBCLANG_PATH = "${pkgs.libclang.lib}/lib";
-            LD_LIBRARY_PATH = "${pkgs.libclang.lib}/lib:${pkgs.stdenv.cc.cc.lib}/lib";
+            LD_LIBRARY_PATH = "${pkgs.libclang.lib}/lib:${pkgs.stdenv.cc.cc.lib}/lib:${pkgs.libffi}/lib";
+            NIX_ENFORCE_PURITY = "0";
 
             SSL_CERT_FILE = "${pkgs.cacert}/etc/ssl/certs/ca-bundle.crt";
             NODE_EXTRA_CA_CERTS = "${pkgs.cacert}/etc/ssl/certs/ca-bundle.crt";
@@ -139,9 +140,7 @@ WRAPPER
             echo "=== Building tools-workers ==="
             cargo build --release --features tesseract --bin tools-workers 2>&1
           '';
-
           installScript = ''
-            cd backend
             mkdir -p $out/bin
             cp target/release/tools-workers $out/bin/tools-workers
           '';
@@ -181,13 +180,6 @@ WRAPPER
 
           buildScript = ''
             echo "=== Building llm-api ==="
-            export HOME="$NIX_BUILD_TOP"
-            export CARGO_HOME="$NIX_BUILD_TOP/.cargo"
-            export NIX_CFLAGS_COMPILE="-idirafter ${pkgs.stdenv.cc.cc}/include/c++/${pkgs.stdenv.cc.cc.version} -idirafter ${pkgs.stdenv.cc.cc}/include/c++/${pkgs.stdenv.cc.cc.version}/x86_64-unknown-linux-gnu"
-            export NIX_LDFLAGS="-L${pkgs.stdenv.cc.cc.lib}/lib -lstdc++"
-            export LD_LIBRARY_PATH="${pkgs.stdenv.cc.cc.lib}/lib:${pkgs.libffi}/lib:$LD_LIBRARY_PATH"
-            export LLVM_CONFIG_PATH="${pkgs.clang}/bin/llvm-config"
-            export LIBCLANG_PATH="${pkgs.libclang.lib}/lib"
             cargo build --release 2>&1
           '';
 
