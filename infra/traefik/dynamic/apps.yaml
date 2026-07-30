@@ -64,12 +64,12 @@ http:
     tools-service:
       loadBalancer:
         servers:
-          - url: 'http://tools:3000'
+          - url: 'http://host.docker.internal:3500'
 
     llm-api-service:
       loadBalancer:
         servers:
-          - url: 'http://llm-api:8080'
+          - url: 'http://host.docker.internal:8080'
 
     jaeger-service:
       loadBalancer:

@@ -20,22 +20,25 @@
             inherit name src;
 
             nativeBuildInputs = with pkgs; [
-              cacert curl gcc gnumake openssl pkg-config python3
+              cacert curl gcc gnumake openssl pkg-config python3 libclang
             ] ++ nativeBuildInputs;
 
             buildInputs = with pkgs; [
               nodejs openssl
             ] ++ buildInputs;
 
+            LIBCLANG_PATH = "${pkgs.libclang.lib}/lib";
+            LD_LIBRARY_PATH = "${pkgs.libclang.lib}/lib:${pkgs.stdenv.cc.cc.lib}/lib";
+
             SSL_CERT_FILE = "${pkgs.cacert}/etc/ssl/certs/ca-bundle.crt";
             NODE_EXTRA_CA_CERTS = "${pkgs.cacert}/etc/ssl/certs/ca-bundle.crt";
             NODE_ENV = "production";
 
-            HOME = "/tmp";
-            CARGO_HOME = "/tmp/.cargo";
-
             phases = [ "unpackPhase" "buildPhase" "installPhase" ];
-            buildPhase = buildScript;
+            buildPhase = ''
+              export HOME="$TMPDIR" CARGO_HOME="$TMPDIR/.cargo-${name}"
+              SSL_CERT_FILE=${pkgs.cacert}/etc/ssl/certs/ca-bundle.crt
+            '' + buildScript;
             installPhase = installScript;
           };
 
@@ -60,7 +63,7 @@
           rev = if name == "hub" then "b007ced615dcc78392fc938350a23e8f022d83b7"
                else if name == "scraper" then "bc782ae4f825892f2d28901f4a5527f353106db1"
                else if name == "tools" then "3956b90c3ce39ffa7ffba8084937f20e11364d6b"
-               else if name == "llm-api" then "HEAD"
+               else if name == "llm-api" then "67861f384bd4f64d5236a9608b33c965fbebbc7f"
                else "HEAD";
           submodules = true;
         };
@@ -122,14 +125,14 @@ WRAPPER
 
           installScript = ''
             mkdir -p $out/bin
-            cp backend/target/release/tools-gateway $out/bin/tools-gateway
+            cp target/release/tools-gateway $out/bin/tools-gateway
           '';
         };
 
         tools-workers = mkApp {
           name = "tools-workers-0.1.0";
           src = submoduleSrc "tools";
-          nativeBuildInputs = cargoDeps ++ [ pkgs.tesseract ];
+          nativeBuildInputs = cargoDeps ++ [ pkgs.tesseract pkgs.leptonica ];
 
           buildScript = ''
             cd backend
@@ -138,8 +141,9 @@ WRAPPER
           '';
 
           installScript = ''
+            cd backend
             mkdir -p $out/bin
-            cp backend/target/release/tools-workers $out/bin/tools-workers
+            cp target/release/tools-workers $out/bin/tools-workers
           '';
         };
 
@@ -158,10 +162,10 @@ WRAPPER
 
           installScript = ''
             mkdir -p $out/share/tools-frontend $out/bin
-            cp -r frontend/.next $out/share/tools-frontend/
-            cp -r frontend/public $out/share/tools-frontend/ 2>/dev/null || true
-            cp frontend/package.json $out/share/tools-frontend/
-            cp -r frontend/node_modules $out/share/tools-frontend/
+            cp -r .next $out/share/tools-frontend/
+            cp -r public $out/share/tools-frontend/ 2>/dev/null || true
+            cp package.json $out/share/tools-frontend/
+            cp -r node_modules $out/share/tools-frontend/
             cat > $out/bin/tools-frontend << WRAPPER
 #!${pkgs.runtimeShell}
 exec ${pkgs.bun}/bin/bun run --cwd $out/share/tools-frontend start
@@ -173,10 +177,17 @@ WRAPPER
         llm-api = mkApp {
           name = "llm-api-0.1.0";
           src = submoduleSrc "llm-api";
-          nativeBuildInputs = cargoDeps;
+          nativeBuildInputs = cargoDeps ++ [ pkgs.cmake pkgs.gcc ];
 
           buildScript = ''
             echo "=== Building llm-api ==="
+            export HOME="$NIX_BUILD_TOP"
+            export CARGO_HOME="$NIX_BUILD_TOP/.cargo"
+            export NIX_CFLAGS_COMPILE="-idirafter ${pkgs.stdenv.cc.cc}/include/c++/${pkgs.stdenv.cc.cc.version} -idirafter ${pkgs.stdenv.cc.cc}/include/c++/${pkgs.stdenv.cc.cc.version}/x86_64-unknown-linux-gnu"
+            export NIX_LDFLAGS="-L${pkgs.stdenv.cc.cc.lib}/lib -lstdc++"
+            export LD_LIBRARY_PATH="${pkgs.stdenv.cc.cc.lib}/lib:${pkgs.libffi}/lib:$LD_LIBRARY_PATH"
+            export LLVM_CONFIG_PATH="${pkgs.clang}/bin/llvm-config"
+            export LIBCLANG_PATH="${pkgs.libclang.lib}/lib"
             cargo build --release 2>&1
           '';
 
