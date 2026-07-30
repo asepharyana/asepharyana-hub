@@ -61,11 +61,14 @@ jobs:
       - name: Setup SSH key
         if: github.ref == 'refs/heads/main'
         env:
-          SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
+          SSH_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
         run: |
           mkdir -p ~/.ssh
           echo "$SSH_KEY" > ~/.ssh/id_ed25519
           chmod 600 ~/.ssh/id_ed25519
+          # Strip \r\n and validate key format
+          sed -i 's/\r$//' ~/.ssh/id_ed25519
+          ssh-keygen -y -f ~/.ssh/id_ed25519 >/dev/null 2>&1 || { echo "SSH key invalid"; exit 1; }
           ssh-keyscan -H "$VPS_HOST" >> ~/.ssh/known_hosts 2>/dev/null
 
       - name: Nix copy to VPS
@@ -80,11 +83,13 @@ jobs:
     steps:
       - name: Setup SSH key
         env:
-          SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
+          SSH_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
         run: |
           mkdir -p ~/.ssh
           echo "$SSH_KEY" > ~/.ssh/id_ed25519
           chmod 600 ~/.ssh/id_ed25519
+          sed -i 's/\r$//' ~/.ssh/id_ed25519
+          ssh-keygen -y -f ~/.ssh/id_ed25519 >/dev/null 2>&1 || { echo "SSH key invalid"; exit 1; }
           ssh-keyscan -H "$VPS_HOST" >> ~/.ssh/known_hosts 2>/dev/null
 
       - name: Deploy all services on VPS
