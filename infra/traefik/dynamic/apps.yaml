@@ -59,7 +59,7 @@ http:
     scraper-service:
       loadBalancer:
         servers:
-          - url: 'http://scraper-api:4091'
+          - url: 'http://host.docker.internal:4091'
 
     tools-service:
       loadBalancer:

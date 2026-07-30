@@ -1,0 +1,71 @@
+name: Nix Build & Deploy
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'apps/**'
+      - 'infra/**'
+      - 'flake.nix'
+      - 'flake.lock'
+      - '.github/workflows/nix-build.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: nix-deploy
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        service: [hub, scraper]
+
+    steps:
+      - name: Checkout with submodules
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          fetch-depth: 0
+
+      - name: Install Nix
+        uses: DeterminateSystems/nix-installer-action@v16
+        with:
+          extra-conf: |
+            sandbox = false
+            accept-flake-config = true
+
+      - name: Use Nix cache
+        uses: DeterminateSystems/magic-nix-cache-action@v8
+
+      - name: Build ${{ matrix.service }} with Nix
+        run: nix build .#${{ matrix.service }} --impure --option sandbox false
+
+      - name: Nix copy via SSH
+        env:
+          SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          VPS_USER: ${{ secrets.VPS_USER }}
+        run: |
+          mkdir -p ~/.ssh
+          echo "$SSH_KEY" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          ssh-keyscan -H "$VPS_HOST" >> ~/.ssh/known_hosts
+          nix copy --to "ssh://$VPS_USER@$VPS_HOST" ./result
+
+      - name: Deploy ${{ matrix.service }} on VPS
+        env:
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          VPS_USER: ${{ secrets.VPS_USER }}
+        run: |
+          STORE_PATH=$(readlink result)
+          PROFILE_NAME="${{ matrix.service }}"
+          ssh "$VPS_USER@$VPS_HOST" "
+            sudo /nix/var/nix/profiles/default/bin/nix-env --profile /nix/var/nix/profiles/$PROFILE_NAME --set '$STORE_PATH' &&
+            sudo systemctl restart $PROFILE_NAME
+          "

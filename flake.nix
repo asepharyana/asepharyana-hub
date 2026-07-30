@@ -31,6 +31,9 @@
             NODE_EXTRA_CA_CERTS = "${pkgs.cacert}/etc/ssl/certs/ca-bundle.crt";
             NODE_ENV = "production";
 
+            HOME = "/tmp";
+            CARGO_HOME = "/tmp/.cargo";
+
             phases = [ "unpackPhase" "buildPhase" "installPhase" ];
             buildPhase = buildScript;
             installPhase = installScript;
