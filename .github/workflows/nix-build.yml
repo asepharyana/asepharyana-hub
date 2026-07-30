@@ -30,6 +30,9 @@ jobs:
       matrix:
         service: [hub, scraper, tools-gateway, tools-workers, tools-frontend, llm-api]
 
+    outputs:
+      store-paths: ${{ steps.store-paths.outputs.paths }}
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -48,9 +51,15 @@ jobs:
         uses: DeterminateSystems/magic-nix-cache-action@v8
 
       - name: Build ${{ matrix.service }}
-        run: nix build .#${{ matrix.service }} --impure --option sandbox false
+        id: build
+        run: |
+          nix build .#${{ matrix.service }} --impure --option sandbox false --print-build-logs
+          STORE_PATH=$(readlink result)
+          echo "store-path=$STORE_PATH" >> "$GITHUB_OUTPUT"
+          echo "✅ ${{ matrix.service }}: $STORE_PATH"
 
-      - name: Nix copy to VPS
+      - name: Setup SSH key
+        if: github.ref == 'refs/heads/main'
         env:
           SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
         run: |
@@ -58,16 +67,18 @@ jobs:
           echo "$SSH_KEY" > ~/.ssh/id_ed25519
           chmod 600 ~/.ssh/id_ed25519
           ssh-keyscan -H "$VPS_HOST" >> ~/.ssh/known_hosts 2>/dev/null
-          nix copy --to "ssh://$VPS_USER@$VPS_HOST" ./result
+
+      - name: Nix copy to VPS
+        if: github.ref == 'refs/heads/main'
+        run: |
+          nix copy --to "ssh://$VPS_USER@$VPS_HOST" "${{ steps.build.outputs.store-path }}"
 
   deploy:
     needs: build
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     steps:
-      - name: Install Nix
-        uses: DeterminateSystems/nix-installer-action@v16
-
-      - name: Deploy all services on VPS
+      - name: Setup SSH key
         env:
           SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
         run: |
@@ -76,28 +87,27 @@ jobs:
           chmod 600 ~/.ssh/id_ed25519
           ssh-keyscan -H "$VPS_HOST" >> ~/.ssh/known_hosts 2>/dev/null
 
-          for service in hub scraper tools-gateway tools-workers tools-frontend llm-api; do
-            echo "=== Deploying $service ==="
-            ssh "$VPS_USER@$VPS_HOST" "
+      - name: Deploy all services on VPS
+        run: |
+          ssh "$VPS_USER@$VPS_HOST" "
+            set -e
+            for service in hub scraper tools-gateway tools-workers tools-frontend llm-api; do
               PROFILE=\"/nix/var/nix/profiles/\$service\"
-              CURRENT=\$(readlink -f \"\$PROFILE\" 2>/dev/null || echo "")
-              LATEST=\$(ls -1d /nix/store/*-\$service-* 2>/dev/null | tail -1)
-              if [ -n \"\$LATEST\" ] && [ \"\$CURRENT\" != \"\$LATEST\" ]; then
-                sudo /nix/var/nix/profiles/default/bin/nix-env --profile \"\$PROFILE\" --set \"\$LATEST\" &&
-                sudo systemctl restart \"\$service\" &&
-                echo \"  ✅ \$service updated to \$LATEST\"
-              elif [ -z \"\$LATEST\" ]; then
-                echo \"  ⚠️ \$service: no store path found\"
+              LATEST=\$(ls -1td /nix/store/*-\$service-0.1.0 2>/dev/null | head -1)
+              if [ -n \"\$LATEST\" ]; then
+                echo \"=== Deploying \$service: \$LATEST ===\"
+                sudo /nix/var/nix/profiles/default/bin/nix-env --profile \"\$PROFILE\" --set \"\$LATEST\" 2>&1
+                sudo systemctl restart \"\$service\" 2>&1 || echo \"  ⚠️ restart failed (may not be enabled yet)\"
+                echo \"  ✅ \$service deployed\"
               else
-                echo \"  ➖ \$service: already up-to-date\"
+                echo \"  ⚠️ \$service: no store path found\"
               fi
-            "
-          done
+            done
+          "
 
       - name: Verify services
-        env:
-          SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
         run: |
+          echo "=== Service Status ==="
           ssh "$VPS_USER@$VPS_HOST" "
             for service in hub scraper tools-gateway tools-workers tools-frontend llm-api; do
               state=\$(systemctl is-active \$service 2>/dev/null || echo 'not-found')
