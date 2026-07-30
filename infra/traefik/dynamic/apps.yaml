@@ -54,7 +54,7 @@ http:
     hub-service:
       loadBalancer:
         servers:
-          - url: 'http://hub:3000'
+          - url: 'http://host.docker.internal:3099'
 
     scraper-service:
       loadBalancer:
