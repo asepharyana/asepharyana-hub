@@ -120,6 +120,16 @@ http:
         - common-chain@file
       service: ml-zeavisedu-service
 
+    # ── Hermes Dashboard ──
+    hermes-dashboard:
+      rule: 'Host(`dashboard.asepharyana.my.id`)'
+      entryPoints:
+        - websecure
+      tls: {}
+      middlewares:
+        - common-chain@file
+      service: hermes-dashboard-service
+
   services:
     hub-service:
       loadBalancer:
@@ -180,3 +190,8 @@ http:
       loadBalancer:
         servers:
           - url: 'http://host.docker.internal:8200'
+
+    hermes-dashboard-service:
+      loadBalancer:
+        servers:
+          - url: 'http://host.docker.internal:9119'
