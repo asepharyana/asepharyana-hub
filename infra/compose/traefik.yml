@@ -68,7 +68,7 @@ services:
       - GOGC=200
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
-      - ${TRAEFIK_CONFIG_PATH:-/root/asepharyana-hub/infra/traefik/dynamic}:/etc/traefik/dynamic:ro
+      - ${TRAEFIK_CONFIG_PATH:-/home/code/asepharyana-hub/infra/traefik/dynamic}:/etc/traefik/dynamic:ro
       - ${TRAEFIK_CERT_MY_ID_PEM:-/root/asepharyana.my.id.pem}:/etc/traefik/certs/asepharyana.my.id.pem:ro
       - ${TRAEFIK_CERT_MY_ID_KEY:-/root/asepharyana.my.id.key}:/etc/traefik/certs/asepharyana.my.id.key:ro
       - ${TRAEFIK_CERT_WEB_ID_PEM:-/root/asepharyana.web.id.pem}:/etc/traefik/certs/asepharyana.web.id.pem:ro
