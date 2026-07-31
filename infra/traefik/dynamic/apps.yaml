@@ -90,6 +90,36 @@ http:
         - common-chain@file
       service: lidm-backend-service
 
+    # ── ZeaVis Edu Frontend ──
+    zeavisedu:
+      rule: 'Host(`zeavisedu.asepharyana.my.id`)'
+      entryPoints:
+        - websecure
+      tls: {}
+      middlewares:
+        - common-chain@file
+      service: zeavisedu-service
+
+    # ── ZeaVis Edu API ──
+    api-zeavisedu:
+      rule: 'Host(`api-zeavisedu.asepharyana.my.id`)'
+      entryPoints:
+        - websecure
+      tls: {}
+      middlewares:
+        - common-chain@file
+      service: api-zeavisedu-service
+
+    # ── ZeaVis Edu ML Service ──
+    ml-zeavisedu:
+      rule: 'Host(`ml-zeavisedu.asepharyana.my.id`)'
+      entryPoints:
+        - websecure
+      tls: {}
+      middlewares:
+        - common-chain@file
+      service: ml-zeavisedu-service
+
   services:
     hub-service:
       loadBalancer:
@@ -135,3 +165,18 @@ http:
       loadBalancer:
         servers:
           - url: 'http://host.docker.internal:3101'
+
+    zeavisedu-service:
+      loadBalancer:
+        servers:
+          - url: 'http://host.docker.internal:8088'
+
+    api-zeavisedu-service:
+      loadBalancer:
+        servers:
+          - url: 'http://host.docker.internal:3200'
+
+    ml-zeavisedu-service:
+      loadBalancer:
+        servers:
+          - url: 'http://host.docker.internal:8200'
