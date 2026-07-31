@@ -50,6 +50,46 @@ http:
         - common-chain@file
       service: jaeger-service
 
+    # ── 9Router (AI routing gateway) ──
+    9router:
+      rule: 'Host(`9router.asepharyana.my.id`)'
+      entryPoints:
+        - websecure
+      tls: {}
+      middlewares:
+        - common-chain@file
+      service: 9router-service
+
+    # ── PR-Agent (GitHub App webhook) ──
+    pr-agent:
+      rule: 'Host(`pr-agent.asepharyana.my.id`)'
+      entryPoints:
+        - websecure
+      tls: {}
+      middlewares:
+        - common-chain@file
+      service: pr-agent-service
+
+    # ── LIDM Frontend ──
+    lidm-frontend:
+      rule: 'Host(`lidm.asepharyana.my.id`)'
+      entryPoints:
+        - websecure
+      tls: {}
+      middlewares:
+        - common-chain@file
+      service: lidm-frontend-service
+
+    # ── LIDM Backend API ──
+    lidm-backend:
+      rule: 'Host(`lidm-api.asepharyana.my.id`)'
+      entryPoints:
+        - websecure
+      tls: {}
+      middlewares:
+        - common-chain@file
+      service: lidm-backend-service
+
   services:
     hub-service:
       loadBalancer:
@@ -75,3 +115,23 @@ http:
       loadBalancer:
         servers:
           - url: 'http://jaeger:16686'
+
+    9router-service:
+      loadBalancer:
+        servers:
+          - url: 'http://host.docker.internal:20128'
+
+    pr-agent-service:
+      loadBalancer:
+        servers:
+          - url: 'http://host.docker.internal:3002'
+
+    lidm-frontend-service:
+      loadBalancer:
+        servers:
+          - url: 'http://host.docker.internal:3000'
+
+    lidm-backend-service:
+      loadBalancer:
+        servers:
+          - url: 'http://host.docker.internal:3001'
