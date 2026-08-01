@@ -130,6 +130,26 @@ http:
         - common-chain@file
       service: hermes-dashboard-service
 
+    # ── GMW Discord Automod Dashboard (Nix: gmw-proxy on 8080) ──
+    gmw:
+      rule: 'Host(`imphnen.asepharyana.my.id`)'
+      entryPoints:
+        - websecure
+      tls: {}
+      middlewares:
+        - common-chain@file
+      service: gmw-service
+
+    # ── TeleUploader (S3 to Telegram Bridge, Nix: bun on 3000) ──
+    teleuploader:
+      rule: 'Host(`upload.asepharyana.my.id`) || Host(`upload.asepharyana.web.id`)'
+      entryPoints:
+        - websecure
+      tls: {}
+      middlewares:
+        - upload-chain@file
+      service: teleuploader-service
+
   services:
     hub-service:
       loadBalancer:
@@ -195,3 +215,13 @@ http:
       loadBalancer:
         servers:
           - url: 'http://host.docker.internal:9119'
+
+    gmw-service:
+      loadBalancer:
+        servers:
+          - url: 'http://host.docker.internal:8080'
+
+    teleuploader-service:
+      loadBalancer:
+        servers:
+          - url: 'http://host.docker.internal:3000'

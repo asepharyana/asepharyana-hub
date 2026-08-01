@@ -78,3 +78,23 @@ http:
           - retry
           - rate-limit
           - buffer
+
+    # ── TeleUploader Chain (2GB body buffer — large file uploads) ──
+    upload-buffer:
+      buffering:
+        maxRequestBodyBytes: 2147483648
+        maxResponseBodyBytes: 10485760
+        memRequestBodyBytes: 1048576
+        memResponseBodyBytes: 1048576
+    upload-rate-limit:
+      rateLimit:
+        average: 300
+        burst: 100
+        period: 1m
+    upload-chain:
+      chain:
+        middlewares:
+          - secure-headers
+          - retry
+          - upload-rate-limit
+          - upload-buffer
