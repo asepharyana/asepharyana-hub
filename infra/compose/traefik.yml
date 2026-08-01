@@ -13,6 +13,7 @@ services:
     ports:
       - '80:80'
       - '443:443'
+      - '443:443/udp'
     networks:
       - app-shared-net
     extra_hosts:
@@ -45,6 +46,13 @@ services:
       - '--entryPoints.websecure.transport.lifeCycle.requestAcceptGraceTimeout=15s'
       - '--entryPoints.websecure.transport.lifeCycle.graceTimeOut=10s'
       - '--entryPoints.websecure.address=:443'
+      - '--entryPoints.websecure.http3=true'
+      # ── Response speed tuning ──
+      - '--serversTransport.maxIdleConnsPerHost=100'
+      - '--serversTransport.forwardingTimeouts.dialTimeout=3s'
+      - '--serversTransport.forwardingTimeouts.idleConnTimeout=180s'
+      - '--global.checkNewVersion=false'
+      - '--global.sendAnonymousUsage=false'
       - '--experimental.plugins.real-ip.moduleName=github.com/soulbalz/traefik-real-ip'
       - '--experimental.plugins.real-ip.version=v1.0.3'
       - '--experimental.plugins.blockpath.moduleName=github.com/traefik/plugin-blockpath'
