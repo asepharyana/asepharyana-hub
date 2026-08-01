@@ -83,7 +83,7 @@ http:
     upload-buffer:
       buffering:
         maxRequestBodyBytes: 2147483648
-        maxResponseBodyBytes: 10485760
+        maxResponseBodyBytes: 2147483648
         memRequestBodyBytes: 1048576
         memResponseBodyBytes: 1048576
     upload-rate-limit:
