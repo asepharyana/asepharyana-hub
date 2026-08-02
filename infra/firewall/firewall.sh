@@ -66,7 +66,13 @@ ip6tables -A INPUT -p tcp --dport 22 -j ACCEPT
 ip6tables -A INPUT -p tcp --dport 80 -j ACCEPT
 ip6tables -A INPUT -p tcp --dport 443 -j ACCEPT
 ip6tables -A INPUT -p tcp --dport 4013 -j ACCEPT
+# ICMPv6/MLD: ping + neighbor discovery (NIC multicast ff02::1 = MLDv2 reports
+# dari host lain; kena LOG+DROP tiap menit — 1800 baris/6h di journal).
+# IPv6 layer-2 discovery WAJIB di-ACCEPT, bukan cuma dropped.
 ip6tables -A INPUT -p icmpv6 -j ACCEPT
+ip6tables -A INPUT -d ff02::1 -j ACCEPT
+ip6tables -A INPUT -d ff02::2 -j ACCEPT
+ip6tables -A INPUT -d ff02::fb -j ACCEPT
 ip6tables -A INPUT -m limit --limit 5/min --limit-burst 10 -j LOG --log-prefix "FW6-DROP " --log-level 4
 ip6tables -A INPUT -j DROP
 
