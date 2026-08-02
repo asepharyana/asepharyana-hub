@@ -61,7 +61,7 @@
         # ── Fetch submodule source ──
         submoduleSrc = name: builtins.fetchGit {
           url = submoduleRepos.${name};
-          rev = if name == "hub" then "f35edb00d72675e7f41bdf8f3b54a17e1a241d1a"
+          rev = if name == "hub" then "6829c7efe2a735d249f5135bff4a0fc28411a295"
                else if name == "scraper" then "62aa5b0e52859afe3ba9de1c7b11cfe2dacf6c2c"
                else if name == "tools" then "3956b90c3ce39ffa7ffba8084937f20e11364d6b"
                else if name == "llm-api" then "67861f384bd4f64d5236a9608b33c965fbebbc7f"
