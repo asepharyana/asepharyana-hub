@@ -1,0 +1,14 @@
+# Nix service targets (file_sd) — 2026-08-02
+# Service yang expose /metrics langsung:
+- targets: ['127.0.0.1:4016']
+  labels:
+    service: gmw-discord-gateway
+- targets: ['127.0.0.1:4008']
+  labels:
+    service: tools-gateway
+# GMW backend expose /api/metrics (bukan /metrics):
+- targets: ['127.0.0.1:4001']
+  labels:
+    service: gmw-backend
+    __metrics_path__: /api/metrics
+# llm-api tidak expose /metrics (404) — dihapus dari target.
