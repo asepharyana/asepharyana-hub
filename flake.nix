@@ -88,6 +88,7 @@
             cp -r .next $out/share/hub/
             cp -r public $out/share/hub/ 2>/dev/null || true
             cp package.json $out/share/hub/
+            cp next.config.{ts,mjs,js} $out/share/hub/ 2>/dev/null || true
             cp -r node_modules $out/share/hub/
             cat > $out/bin/hub << WRAPPER
 #!${pkgs.runtimeShell}
