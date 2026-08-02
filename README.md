@@ -1,180 +1,231 @@
-# Asepharyana Hub
+# Architecture
 
-Hub repo untuk ekosistem portfolio dan layanan pendukung milik Asep Haryana Saputra.
-Aplikasi dipisah sebagai submodule agar frontend, API, dan service pendukung bisa dikembangkan serta di-deploy secara independen.
+## Hub Repository Structure Overview
 
-## Services
-
-| Service | Path           | Notes                          |
-| :------ | :------------- | :----------------------------- |
-| Scraper | `apps/scraper` | Web scraper service + Dapr SDK |
-| NATS    | —              | Message broker + JetStream     |
-| Dapr    | —              | Sidecar runtime (per service)  |
-
-## Infrastructure
-
-File compose berada di `infra/compose/`:
-
-- `traefik.yml`: reverse proxy Traefik untuk semua layanan.
-- `shared.yml`: Redis (cache + Dapr state store).
-- `nats.yml`: NATS message broker dengan JetStream persistence.
-- `dapr.yml`: Dapr placement service untuk koordinasi sidecar.
-- `scraper.yml`: manifest deploy per service (app + Dapr sidecar).
-
-Dockerfile per service berada di `infra/docker/`.
-
-## Docker Image Builds
-
-Build image via Dockerfile:
-
-```bash
-docker build -f infra/docker/scraper.Dockerfile -t scraper-api:latest .
+```diff
+asepharyana-hub/
+├── apps/                    # Application services (Git submodules)
+│   └── scraper/            # Web scraper service
+├── docs/                    # Documentation
+│   ├── adr/                # Architecture Decision Records
+│   ├── add-new-app.md      # Guide for adding new services
+│   └── superpowers/        # Project capabilities tracking
+├── infra/                   # Infrastructure as code
+│   ├── compose/            # Docker Compose files per service
+│   ├── config/             # Infrastructure configuration
+│   ├── docker/             # Dockerfiles per service
+│   └── traefik/            # Traefik reverse proxy config
+│       └── dynamic/        # Dynamic routing rules (YAML)
+├── scripts/                 # Utility scripts
+│   ├── git-hooks/          # Git hook scripts
+│   ├── cleanup-ghcr.sh     # GHCR image cleanup
+│   └── update-deps.sh      # Dependency update helper
+├── .github/workflows/       # CI/CD pipelines
+├── eslint.config.mjs        # Root ESLint config
+├── package.json             # Root formatting/lint helper scripts
+└── .prettierrc              # Prettier formatting rules
 ```
 
-Tag and push:
+## Technology Stack
+
+### Services
+
+|| Service   | Path           | Language/Runtime | Framework | Database | Key Libraries |
+||---------|----------------|------------------|-----------|----------|---------------|
+|| **scraper** | `apps/scraper` | — | — | — | — |
+
+### Infrastructure
+
+|| Component          | Technology              | Purpose                                                          |
+||---------------------|-------------------------|------------------------------------------------------------------|
+|| Reverse Proxy       | Traefik v3.6            | TLS termination, routing, middleware (rate-limit, headers, auth) |
+|| Container Runtime   | Docker + Docker Compose | Service isolation and orchestration                              |
+|| Container Registry  | GHCR (ghcr.io)          | Docker image storage                                             |
+|| Networking          | Tailscale               | Secure overlay network between VPS nodes                         |
+|| Message Bus         | NATS + JetStream        | Event-driven pub/sub, job queues, streaming                      |
+|| Runtime Sidecar     | Dapr                    | Service invocation, pub/sub abstraction, state management        |
+|| Cache & State       | Redis (Alpine)          | Session store, rate limit counters, caching, Dapr state store    |
+|| CI/CD               | GitHub Actions          | Build, test, deploy automation                                   |
+
+### Infrastructure
+
+### Traefik Reverse Proxy
+
+Traefik runs as the entry point for all HTTP/S traffic. It is configured via:
+
+- **Static config**: CLI arguments in `infra/compose/traefik.yml` — entry points, providers, plugins
+- **Dynamic config**: `infra/traefik/dynamic/` — routers, services, middlewares, TLS
+- **Docker provider**: Auto-discovers containers with `traefik.enable=true` labels
+- **File provider**: Loads `apps.yaml` (routers/services), `middlewares.yaml`, `ssl.yaml`
+
+Key middleware chains (`infra/traefik/dynamic/middlewares.yaml`):
+
+- `secure-headers` — SSL redirect, HSTS, XSS protection, CSP
+- `compress` — Gzip compression for responses over 256 bytes
+- `rate-limit` — 100 avg / 50 burst requests
+- `buffer` — 10MB request/response body limit
+- `block-sensitive-paths` — blocks `.env`, `.git`, `/wp-admin` etc.
+- `common-chain` — composes secure-headers + compress + retry + rate-limit + buffer
+
+All services route through Traefik on port 443 (TLS), with automatic HTTP-to-HTTPS redirect.
+
+### Docker Compose
+
+Each service has its own Compose file under `infra/compose/`. All services join the `app-shared-net` external Docker network, enabling inter-service communication by container name.
+
+Shared services:
+
+- `infra/compose/shared.yml` — Redis (alias: `redis`)
+- `infra/compose/traefik.yml` — Traefik reverse proxy
+
+Service compose files are combined during deployment:
 
 ```bash
-SHORT_SHA=$(git rev-parse --short HEAD)
-
-docker tag scraper-api:latest ghcr.io/asepharyana/asepharyana-hub/scraper-api:sha-$SHORT_SHA
-docker push ghcr.io/asepharyana/asepharyana-hub/scraper-api:sha-$SHORT_SHA
+docker compose -f traefik.yml -f shared.yml -f scraper.yml up -d
 ```
 
-## Local Development
+### Tailscale Networking
 
-### 1) Jalankan dependency bersama
+### Arsitektur
+
+Semua VPS terhubung via **Tailscale**. Setiap VPS punya IP Tailscale dan service berkomunikasi antar VPS melalui Tailscale network (`100.64.0.0/10`). Container-to-Tailscale connectivity requires a systemd service that adds a route to the main routing table:
 
 ```bash
-docker compose -f infra/compose/shared.yml up -d
+ip route add 100.64.0.0/10 dev tailscale0 table main
 ```
 
-### 2) Jalankan service yang dibutuhkan
+This is managed by `/etc/systemd/system/tailscale-routes.service` on the `orangevps` VPS.
 
-Refer to each service's own documentation for development setup.
+### Data Flow
 
-## API Docs and Monitoring
+### Request Flow (Production)
 
-Refer to each service's own documentation for API docs.
+```mermaid
+sequenceDiagram
+    participant User as Browser/Client
+    participant DNS as Cloudflare DNS
+    participant Traefik as Traefik Proxy
+    participant App as Application Container
+    participant DB as PostgreSQL (imrnes via Tailscale)
+    participant Redis as Redis (imrnes via Tailscale)
+
+    User->>DNS: asepharyana.my.id
+    DNS->>User: A/AAAA record → orangevps VPS IP
+    User->>Traefik: HTTPS request :443
+    Traefik->>Traefik: TLS termination
+    Traefik->>Traefik: Middleware chain (headers, rate-limit, buffer)
+    Traefik->>App: HTTP reverse-proxy (internal network)
+
+    alt Database query
+        App->>DB: sqlx/Drizzle query via Tailscale
+        DB-->>App: Result set
+    else Cache lookup
+        App->>Cache: GET/SET via Tailscale
+        Cache-->>App: Cached value
+    end
+
+    App-->>Traefik: HTTP response
+    Traefik-->>User: HTTPS response
+```
+
+### CI/CD Pipeline
+
+```mermaid
+flowchart LR
+    A[Push to main] --> B{Changed paths?}
+    B -->|apps/** or infra/docker/**| C[Build Docker Images]
+    B -->|infra/compose/**| D[Deploy to VPS]
+    B -->|apps/*/src/**/*.ts| E[Lint + TypeCheck]
+
+    C --> F[Push to GHCR]
+    F --> G[Update Compose tags]
+    G --> D
+
+    D --> H[SSH into VPS]
+    H --> I[Pull images]
+    I --> J[docker compose up -d]
+
+    subgraph "Build Phase"
+        C
+        F
+        G
+    end
+
+    subgraph "Deploy Phase"
+        D
+        H
+        I
+        J
+    end
+```
+
+### Deployment Architecture
+
+### Image Tags
+
+- `latest` — mutable, for convenience
+- `sha-<short-sha>` — immutable, for deterministic rollbacks
+- Build cache: `sha-<short>-buildcache`
+
+Registry: `ghcr.io/asepharyana/asepharyana-hub/<service>`
 
 ## Deployment Notes
 
 - Pipeline memakai image tag berbasis commit SHA (`sha-<short-sha>`), bukan `latest`.
 - Deploy Compose sekarang mencakup `infra/compose/*.yml` dan `deploy-docker.yml` akan berjalan langsung ketika `infra/compose/**` berubah.
+- Selective deployment: hanya compose file yg berubah yang di-redeploy.
 
 ## Networking & Tailscale
 
 ### Arsitektur
 
-Semua VPS terhubung via **Tailscale**. Setiap VPS punya IP Tailscale dan service berkomunikasi antar VPS melalui Tailscale network (`100.64.0.0/10`).
-
-| VPS        | Tailscale IP    | Service                                |
-| :--------- | :-------------- | :------------------------------------- |
-| `imrnes`   | `100.121.180.82` | PostgreSQL, Redis                     |
-| `orangevps` | `100.79.111.61` | App containers (Traefik, scraper-api) |
-| `archlinux` | `100.84.39.83` | _(development machine)_               |
-
-### Container → Tailscale Connectivity
-
-Docker containers di bridge network (`app-shared-net`) **tidak otomatis bisa access Tailscale IPs** karena Tailscale menggunakan **custom policy routing** (routes di `table 52`, bukan `main` table).
-
-#### Fix: Tailscale Route di Main Table
-
-Agar container bisa reach Tailscale IPs (untuk DB, Redis, dll), tambahkan route ke `main` routing table:
+Semua VPS terhubung via **Tailscale**. Setiap VPS punya IP Tailscale dan service berkomunikasi antar VPS melalui Tailscale network (`100.64.0.0/10`). Container-to-Tailscale connectivity requires a systemd service that adds a route to the main routing table:
 
 ```bash
-# Manual (hilang setelah reboot)
 ip route add 100.64.0.0/10 dev tailscale0 table main
-
-# Persistent (systemd service)
-# Sudah dikonfigurasi sebagai /etc/systemd/system/tailscale-routes.service
-# Service ini berjalan otomatis setelah tailscaled start
-systemctl enable tailscale-routes.service
-systemctl start tailscale-routes.service
 ```
 
-#### Environment Variables
+This is managed by `/etc/systemd/system/tailscale-routes.service` on the `orangevps` VPS.
+
+### Environment Variables
 
 Service yang connect ke Tailscale IP:
 
 ```env
 # PostgreSQL di imrnes
-DATABASE_URL=postgres://user:pass@100.121.180.82:5432/dbname
+DATABASE_URL=postgres://user:***@100.121.180.82:6432/dbname
 
 # Redis di imrnes
 REDIS_URL=redis://100.121.180.82:6379
 ```
 
-#### Persistent Systemd Service
+## Submodule Strategy
 
-File: `/etc/systemd/system/tailscale-routes.service`
+Each application lives in its own Git repository and is imported as a submodule into `apps/`. This approach:
 
-```ini
-[Unit]
-Description=Add Tailscale routes to main routing table
-After=tailscaled.service
-Requires=tailscaled.service
+- **Enables independent development** — each service can be developed, tested, and versioned separately
+- **Pins exact commits** — the super-repository tracks exact submodule SHAs, enabling reproducible deployments
+- **Supports `repository_dispatch`** — when a submodule receives a push, it can trigger the super-repository to build and deploy only that service
 
-[Service]
-Type=oneshot
-ExecStart=/bin/bash -c '/usr/sbin/ip route add 100.64.0.0/10 dev tailscale0 table main 2>/dev/null || /usr/sbin/ip route replace 100.64.0.0/10 dev tailscale0 table main'
-RemainAfterExit=yes
+### Submodule Lifecycle
 
-[Install]
-WantedBy=multi-user.target
-```
+1. Developer pushes to a submodule (e.g., `apps/scraper`)
+2. Submodule's GitHub Action dispatches `repository_dispatch` to the super-repo with the service name and new SHA
+3. Super-repo detects the dispatch, waits for the SHA to be fetchable, then builds only that service
+4. The compose manifest is updated and committed with the new SHA tag
+5. The deploy workflow runs and updates only the changed containers
 
-Install & enable:
+### Updating Submodules
 
 ```bash
-sudo tee /etc/systemd/system/tailscale-routes.service > /dev/null << 'EOF'
-[Unit]
-Description=Add Tailscale routes to main routing table
-After=tailscaled.service
-Requires=tailscaled.service
-
-[Service]
-Type=oneshot
-ExecStart=/bin/bash -c '/usr/sbin/ip route add 100.64.0.0/10 dev tailscale0 table main 2>/dev/null || /usr/sbin/ip route replace 100.64.0.0/10 dev tailscale0 table main'
-RemainAfterExit=yes
-
-[Install]
-WantedBy=multi-user.target
-EOF
-
-sudo systemctl daemon-reload
-sudo systemctl enable tailscale-routes.service
-sudo systemctl start tailscale-routes.service
+# Update a single submodule to latest
+cd apps/scraper
+git checkout main
+git pull
+cd ../..
+git add apps/scraper
+git commit -m "chore(scraper): update submodule to latest"
 ```
-
-#### Troubleshooting
-
-```bash
-# Cek Tailscale peers
-tailscale status
-
-# Cek route table 52 (Tailscale internal)
-ip route show table 52
-
-# Cek route table main (yang dipakai container)
-ip route show table main | grep 100.
-
-# Test connectivity dari dalam container
-docker exec <container> node -e "
-const net = require('net');
-const c = new net.Socket();
-c.setTimeout(5000);
-c.connect(5432, '100.121.180.82', () => { console.log('OK'); c.end(); });
-c.on('error', e => { console.log('FAIL:', e.code); });
-c.on('timeout', () => { console.log('TIMEOUT'); c.destroy(); });
-"
-
-# Cek service tailscale-routes
-systemctl status tailscale-routes.service
-```
-
-## Menambahkan Aplikasi Baru
-
-Panduan langkah demi langkah untuk menambahkan aplikasi baru ada di `docs/add-new-app.md`.
 
 ## License
 
