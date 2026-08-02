@@ -1,6 +1,6 @@
 ---
 name: deploy-workflow
-description: Panduan deploy, CI/CD, dan Docker compose patterns untuk Asepharyana Hub
+description: Panduan deploy, CI/CD, dan Nix/systemd patterns untuk Asepharyana Hub
 ---
 
 # Deploy & Workflow — Asepharyana Hub

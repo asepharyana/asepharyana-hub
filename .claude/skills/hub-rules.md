@@ -14,8 +14,9 @@ asepharyana-hub/
 ├── infra/             # Infrastructure as code
 │   ├── compose/       # Satu compose file per service
 │   ├── dapr/          # Dapr component configs
-│   ├── docker/        # Dockerfiles per service
-│   └── traefik/       # Static & dynamic Traefik config
+│   ├── docker/        # Dockerfiles (LEGACY — Docker dihapus)
+│   ├── traefik/       # Traefik config (LEGACY — diganti Caddy)
+│   └── caddy/         # Caddyfile.prod (reverse proxy produksi)
 ├── scripts/           # Utility scripts (cleanup, update-deps)
 └── .github/workflows/ # CI/CD pipelines
 ```
@@ -28,9 +29,8 @@ asepharyana-hub/
 ## Infrastructure Patterns
 
 ### Networking
-- Semua service join **`app-shared-net`** (external Docker bridge)
-- Service discovery via Docker DNS (container alias)
-- Traefik sebagai ingress untuk HTTP/S eksternal
+- Semua service Nix/systemd, inter-service via 127.0.0.1:<port>
+- Caddy sebagai ingress untuk HTTP/S eksternal (auto-TLS LE, HTTP/3)
 - Tailscale untuk cross-VPS (PostgreSQL, Redis)
 
 ### Compose File Pattern
@@ -78,8 +78,8 @@ networks:
       - ../../infra/dapr/components:/components
 ```
 
-### Traefik Routing
-- Router + service definition di `infra/traefik/dynamic/apps.yaml`
+### Caddy Routing
+- Site block di `/etc/caddy/Caddyfile` (ref `infra/caddy/Caddyfile.prod`)
 - Subdomain pattern: `<service>.asepharyana.my.id` + `<service>.asepharyana.web.id`
 - TLS cert dari volume mount (bukan auto-acme)
 
@@ -92,5 +92,5 @@ networks:
 1. `shared.yml` (Redis)
 2. `nats.yml` (NATS message bus)
 3. `dapr.yml` (Dapr placement)
-4. `traefik.yml` (Reverse proxy)
+4. Caddy (reverse proxy)
 5. Service compose files (apps + Dapr sidecar)

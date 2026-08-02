@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2026-08-02]
+
+### Changed
+
+- **Infra overhaul**: Docker + Traefik dihapus dari produksi → Caddy 2.11.4 (reverse proxy, auto-TLS LE, HTTP/3) + Nix/systemd services.
+- **Port migration**: semua service pindah ke port 4000-an (hub 4003, tools 4007/4008, scraper 4091, llm-api 4010, dll).
+- **DB via PgBouncer pool**: semua service konek ke imrnes 100.121.180.82:6432 (bukan :5432 langsung).
+- **Secrets**: Bitwarden Secrets Manager (BWS) sebagai central secret store, wrapper bws-exec.
+- **Flake**: dibatasi x86_64-linux (nixpkgs 26.11 drop darwin).
+
 ## [Unreleased]
 
 ### Changed

@@ -1,5 +1,7 @@
 # Infrastructure & Deployment
 
+> **LEGACY (2026-08-02):** Dokumen plan ini ditulis saat infra masih Docker/Traefik. Produksi sekarang Caddy + Nix/systemd dengan port 4000-an. Gunakan hanya sebagai referensi historis.
+
 ## Docker Image Architecture
 
 Project ini punya **satu Docker image** dengan multi-stage build. Backend Rust + Tesseract + ONNX model plus frontend Next.js.

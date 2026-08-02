@@ -2,14 +2,15 @@
 
 Kumpulan solusi untuk masalah umum yang spesifik di infrastruktur `asepharyana-hub`.
 
+> **Catatan (2026-08-02):** Produksi sekarang Caddy + Nix/systemd. Section Traefik/Docker di bawah adalah LEGACY — Docker dan Traefik dihapus dari produksi; gunakan hanya sebagai referensi historis.
+
 ## Daftar Isi
 
 - [Deployment](#deployment)
 - [Dapr](#dapr)
 - [NATS](#nats)
-- [Traefik](#traefik)
 - [Tailscale / Networking](#tailscale--networking)
-- [Docker / Container](#docker--container)
+- [Caddy](#caddy)
 - [Database](#database)
 - [Submodule](#submodule)
 

@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Repository Overview
 
-Asepharyana Hub is a **hub monorepo** for Asep Haryana Saputra's portfolio ecosystem. Application services live in separate repos imported as Git submodules under `apps/`. Infrastructure (Docker Compose, Traefik, Dapr) lives in `infra/`.
+Asepharyana Hub is a **hub monorepo** for Asep Haryana Saputra's portfolio ecosystem. Application services live in separate repos imported as Git submodules under `apps/`. Production infrastructure: Caddy reverse proxy + Nix/systemd services (Docker/Traefik removed 2026-08-02; legacy configs under `infra/` marked LEGACY).
 
 ```
 asepharyana-hub/
@@ -13,9 +13,9 @@ asepharyana-hub/
 │   └── scraper/       # Rust scraper API (asepharyana-hub-scraper)
 ├── docs/              # ADRs, deployment guide, new-app guide
 ├── infra/
-│   ├── compose/       # One Docker Compose file per service
+│   ├── compose/       # Docker Compose files (LEGACY — Docker dihapus)
 │   ├── dapr/          # Dapr config + component definitions
-│   ├── docker/        # Dockerfiles per service
+│   ├── docker/        # Dockerfiles (LEGACY)
 │   └── traefik/       # Reverse proxy config (static + dynamic)
 ├── scripts/           # Utility scripts (cleanup, update-deps, git hooks)
 └── .github/workflows/ # CI/CD pipelines
@@ -31,23 +31,22 @@ asepharyana-hub/
   - `apps/tools` → `asepharyana/asepharyana-hub-tools`.
 
 ### Infrastructure Stack
-- **Traefik v3.6** — reverse proxy, TLS termination, middleware chain, Prometheus metrics (`--metrics.prometheus=true`)
+- **Caddy 2.11.4** — reverse proxy, TLS termination (auto-LE), HTTP/3, zstd/gzip, keep-alive tuning (`/etc/caddy/Caddyfile`, ref `infra/caddy/Caddyfile.prod`)
 - **NATS + JetStream** — message broker with persistent streaming
 - **Dapr** — sidecar runtime (pub/sub abstraction, state management, service invocation)
 - **Redis (Alpine)** — cache, session store, Dapr state store & pub/sub backend
-- **Prometheus** — metrics backend with Docker service discovery (`docker_sd_configs`). Auto-discovers containers with `prometheus.io/scrape=true` label.
+- **Prometheus** — metrics backend with `file_sd_configs` target files.
 - **Jaeger** — distributed tracing backend (all-in-one), OTLP receiver
 - **Tailscale** — secure overlay network between VPS nodes (PostgreSQL on `imrnes`, containers on `orangevps`)
 
 ### Monitoring
 - **Hub dashboard** at `/dashboard` (Next.js client page, auto-refresh 15s)
-- **Dashboard API** at `/api/dashboard` — returns JSON with Docker containers, Jaeger traces, Prometheus metrics (RPS, latency, errors, node CPU/RAM/Disk)
-- **Docker socket** mounted on `hub` container (`--group-add 988`) for container discovery
-- **Prometheus** auto-scrapes Traefik for per-service request metrics
+- **Dashboard API** at `/api/dashboard` — returns JSON with systemd services, Jaeger traces, Prometheus metrics (RPS, latency, errors, node CPU/RAM/Disk)
+- **Prometheus** scrapes node-exporter + app metrics endpoints
 
 ### Networking
-- All containers join `app-shared-net` (external Docker bridge network). Service discovery via Docker DNS (container name aliases).
-- Traefik handles all external HTTP/S traffic on port 443.
+- All services run as Nix/systemd units; inter-service via 127.0.0.1:<port>.
+- Caddy handles all external HTTP/S traffic on port 443 (and HTTP/3 UDP).
 - Cross-VPS traffic (DB, Redis) goes through Tailscale (`100.64.0.0/10`). Container-to-Tailscale connectivity requires a route in the main routing table (managed by `tailscale-routes.service`).
 
 ## Commands
@@ -62,7 +61,7 @@ bun run ci               # Biome CI mode (no writes, exit code on issues)
 bun run format           # Format only
 bun run lint             # Lint only
 
-docker build -f infra/docker/scraper.Dockerfile -t scraper-api:latest .  # Build image
+# Nix build (produksi): nix build .#default --impure --option sandbox false
 ```
 
 ### Validate YAML
@@ -76,8 +75,8 @@ for f in infra/compose/*.yml; do docker compose -f "$f" config >/dev/null && ech
 | Workflow | Trigger | Action |
 |----------|---------|--------|
 | `lint.yml` | PR/push to main touching `*.json`, `*.js`, `biome.json` | `bun run ci` (Biome lint) |
-| `docker-build-push.yml` | Push to main touching `apps/**`/`infra/**`, or `repository_dispatch` | Build Docker images per changed service, push to GHCR, update compose manifests |
-| `deploy-docker.yml` | After build completes, or push touching `infra/**` | SSH to VPS (orangevps), pull images, restart containers selectively |
+| `deploy.yml` | Push to main | nix build → nix copy ssh:// → systemctl restart |
+| `docker-build-push.yml` | LEGACY (Docker dihapus) | LEGACY |
 | `security.yml` | PR to main + weekly Monday | CodeQL analysis (Rust) |
 | `update-submodule.yml` | `repository_dispatch` | Update submodule pointer in hub repo |
 
@@ -99,11 +98,11 @@ Each service gets one compose file. Containers join `app-shared-net` with a `con
 ### Dapr Sidecar Pattern
 Each app gets a companion `daprd` sidecar container. Dapr components (pubsub, statestore) are mounted from `infra/dapr/components/`. The sidecar communicates with NATS for pub/sub and Dapr placement for actor coordination.
 
-### Traefik Routing
-- Routers + services defined in `infra/traefik/dynamic/apps.yaml`
+### Caddy Routing
+- Site blocks in `/etc/caddy/Caddyfile` (ref `infra/caddy/Caddyfile.prod`)
 - Subdomain pattern: `<service>.asepharyana.my.id` and `<service>.asepharya.web.id`
-- TLS certs from volume mounts (not auto-ACME)
-- Middleware chain: `secure-headers` → `compress` → `retry` → `rate-limit` → `buffer`
+- Auto-TLS via Let's Encrypt
+- Shared handler snippet `(proxy)`: `encode zstd gzip` + security headers + keep-alive tuning
 
 ### Image Tagging
 - `sha-<short-sha>` — immutable, for deterministic rollbacks
@@ -115,9 +114,9 @@ Each app gets a companion `daprd` sidecar container. Dapr components (pubsub, st
 
 1. Create a separate repo for the app code
 2. Add as submodule: `git submodule add <url> apps/<name>`
-3. Create Dockerfile in `infra/docker/`
+3. Create Nix flake package + systemd unit
 4. Create compose file in `infra/compose/` (app + Dapr sidecar)
-5. Add Traefik router in `infra/traefik/dynamic/apps.yaml`
+5. Add Caddy site block in `/etc/caddy/Caddyfile`
 6. Add build job in `.github/workflows/docker-build-push.yml`
 7. See `docs/add-new-app.md` for full guide
 

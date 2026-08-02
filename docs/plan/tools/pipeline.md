@@ -1,5 +1,7 @@
 # Document Scanner — Processing Pipeline
 
+> **LEGACY (2026-08-02):** Dokumen plan ini ditulis saat infra masih Docker/Traefik. Produksi sekarang Caddy + Nix/systemd dengan port 4000-an. Gunakan hanya sebagai referensi historis.
+
 Ini adalah inti dari project. Pipeline mengubah foto dokumen HP jadi dokumen scan yang proper. Setiap tahap dibahas detail teknisnya.
 
 ## Pipeline Overview

@@ -1,5 +1,7 @@
 # Architecture
 
+> **LEGACY (2026-08-02):** Dokumen plan ini ditulis saat infra masih Docker/Traefik. Produksi sekarang Caddy + Nix/systemd dengan port 4000-an. Gunakan hanya sebagai referensi historis.
+
 ## System Overview
 
 ```

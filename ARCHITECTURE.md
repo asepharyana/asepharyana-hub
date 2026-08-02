@@ -10,12 +10,12 @@ asepharyana-hub/
 │   ├── adr/                # Architecture Decision Records
 │   ├── add-new-app.md      # Guide for adding new services
 │   └── superpowers/        # Project capabilities tracking
-├── infra/                   # Infrastructure as code
-│   ├── compose/            # Docker Compose files per service
+├── infra/                   # Infrastructure as code (LEGACY Docker layout)
+│   ├── compose/            # Docker Compose files (LEGACY — Docker dihapus 2026-08-02)
 │   ├── config/             # Infrastructure configuration
-│   ├── docker/             # Dockerfiles per service
-│   └── traefik/            # Traefik reverse proxy config
-│       └── dynamic/        # Dynamic routing rules (YAML)
+│   ├── docker/             # Dockerfiles (LEGACY)
+│   ├── traefik/            # Traefik config (LEGACY — diganti Caddy)
+│   └── caddy/              # Caddyfile.prod (reverse proxy produksi)
 ├── scripts/                 # Utility scripts
 │   ├── git-hooks/          # Git hook scripts
 │   ├── cleanup-ghcr.sh     # GHCR image cleanup
@@ -38,9 +38,10 @@ asepharyana-hub/
 
 | Component          | Technology              | Purpose                                                          |
 | ------------------ | ----------------------- | ---------------------------------------------------------------- |
-| Reverse Proxy      | Traefik v3.6            | TLS termination, routing, middleware (rate-limit, headers, auth) |
-| Container Runtime  | Docker + Docker Compose | Service isolation and orchestration                              |
-| Container Registry | GHCR (ghcr.io)          | Docker image storage                                             |
+| Reverse Proxy      | Caddy 2.11.4            | TLS termination (auto-LE), routing, HTTP/3, keep-alive tuning    |
+| Runtime           | Nix + systemd           | Service isolation and orchestration (Docker dihapus 2026-08-02)  |
+| Deployment        | GitHub Actions          | nix build → nix copy ssh:// → systemctl restart                  |
+| Secrets           | Bitwarden Secrets Manager (BWS) | Central secret store, bws-exec wrapper                     |
 | Networking         | Tailscale               | Secure overlay network between VPS nodes                         |
 | Message Bus        | NATS + JetStream        | Event-driven pub/sub, job queues, streaming                      |
 | Runtime Sidecar    | Dapr                    | Service invocation, pub/sub abstraction, state management        |
@@ -49,40 +50,49 @@ asepharyana-hub/
 
 ## Infrastructure
 
-### Traefik Reverse Proxy
+### Caddy Reverse Proxy
 
-Traefik runs as the entry point for all HTTP/S traffic. It is configured via:
+Caddy 2.11.4 runs as the entry point for all HTTP/S traffic (systemd `caddy.service`, `/etc/caddy/Caddyfile`). It is configured via:
 
-- **Static config**: CLI arguments in `infra/compose/traefik.yml` — entry points, providers, plugins
-- **Dynamic config**: `infra/traefik/dynamic/` — routers, services, middlewares, TLS
-- **Docker provider**: Auto-discovers containers with `traefik.enable=true` labels
-- **File provider**: Loads `apps.yaml` (routers/services), `middlewares.yaml`, `ssl.yaml`
+- **Auto-TLS**: Let's Encrypt per-domain (email asepharyana@gmail.com)
+- **HTTP/3**: h3 enabled on :443 (QUIC)
+- **Snippet `(proxy)`**: shared handler — `encode zstd gzip`, security headers, keep-alive upstream (keepalive 120s, max_conns_per_host 100, dial_timeout 3s)
+- **Upload domain** (`upload.asepharyana.my.id`): `flush_interval -1` (streaming), `request_body max_size 0` (unlimited)
 
-Key middleware chains (`infra/traefik/dynamic/middlewares.yaml`):
+Reference: `infra/caddy/Caddyfile.prod`. Legacy Traefik configs stay under `infra/traefik/` for reference only.
 
-- `secure-headers` — SSL redirect, HSTS, XSS protection, CSP
-- `compress` — Gzip compression for responses over 256 bytes
-- `rate-limit` — 100 avg / 50 burst requests
-- `buffer` — 10MB request/response body limit
-- `block-sensitive-paths` — blocks `.env`, `.git`, `/wp-admin` etc.
-- `common-chain` — composes secure-headers + compress + retry + rate-limit + buffer
+### Port Mapping (Produksi)
 
-All services route through Traefik on port 443 (TLS), with automatic HTTP-to-HTTPS redirect.
+| Service | Port | Domain |
+|---------|------|--------|
+| TeleUploader | 4000 | upload.asepharyana.my.id |
+| GMW backend | 4001 | (internal) |
+| pr-agent | 4002 | pr-agent.asepharyana.my.id |
+| hub frontend | 4003 | asepharyana.my.id |
+| lidm frontend | 4004 | lidm.asepharyana.my.id |
+| lidm backend | 4005 | lidm-api.asepharyana.my.id |
+| zeavis API | 4006 | api-zeavisedu.asepharyana.my.id |
+| tools frontend | 4007 | tools.asepharyana.my.id |
+| tools gateway | 4008 | (internal) |
+| GMW proxy | 4009 | imphnen.asepharyana.my.id |
+| llm-api | 4010 | ai.asepharyana.my.id |
+| zeavisedu nginx | 4011 | zeavisedu.asepharyana.my.id |
+| zeavis ML | 4012 | ml-zeavisedu.asepharyana.my.id |
+| dashboard | 4013 | dashboard.asepharyana.my.id |
+| 9router | 4014 | 9router.asepharyana.my.id |
+| scraper | 4091 | scraper.asepharyana.my.id |
 
-### Docker Compose
+### Nix + systemd Deployment
 
-Each service has its own Compose file under `infra/compose/`. All services join the `app-shared-net` external Docker network, enabling inter-service communication by container name.
-
-Shared services:
-
-- `infra/compose/shared.yml` — Redis (alias: `redis`)
-- `infra/compose/traefik.yml` — Traefik reverse proxy
-
-Service compose files are combined during deployment:
+Docker dihapus dari produksi (2026-08-02). Semua service deploy via Nix flakes + systemd:
 
 ```bash
-docker compose -f traefik.yml -f shared.yml -f scraper.yml up -d
+nix build .#default --impure --option sandbox false
+nix copy --to ssh://vps /nix/store/<hash>
+systemctl restart <service>
 ```
+
+CI/CD: GitHub Actions (`deploy.yml`) → nix build → nix copy → systemctl restart. Flake dibatasi `x86_64-linux` (nixpkgs 26.11 drop darwin).
 
 ### Tailscale Networking
 
@@ -99,12 +109,12 @@ graph TB
         REDIS[Redis]
     end
 
-    subgraph "orangevps Containers"
-        TRAEFIK[Traefik :443]
+    subgraph "orangevps Services (Nix)"
+        CADDY[Caddy :443]
         SCRAPER[scraper-api :4091]
     end
 
-    TRAEFIK --> SCRAPER
+    CADDY --> SCRAPER
 
     style IMRNES fill:#3a7,color:#fff
     style ORANGEVPS fill:#37a,color:#fff
@@ -127,17 +137,17 @@ This is managed by `/etc/systemd/system/tailscale-routes.service` on the `orange
 sequenceDiagram
     participant User as Browser/Client
     participant DNS as Cloudflare DNS
-    participant Traefik as Traefik Proxy
+    participant Caddy as Caddy Proxy
     participant App as Application Container
     participant DB as PostgreSQL (imrnes via Tailscale)
     participant Redis as Redis (imrnes via Tailscale)
 
     User->>DNS: asepharyana.my.id
     DNS->>User: A/AAAA record → orangevps VPS IP
-    User->>Traefik: HTTPS request :443
-    Traefik->>Traefik: TLS termination
-    Traefik->>Traefik: Middleware chain (headers, rate-limit, buffer)
-    Traefik->>App: HTTP reverse-proxy (internal network)
+    User->>Caddy: HTTPS request :443
+    Caddy->>Caddy: TLS termination
+    Caddy->>Caddy: encode + headers
+    Caddy->>App: HTTP reverse-proxy (127.0.0.1:<port>)
 
     alt Database query
         App->>DB: sqlx/Drizzle query via Tailscale
@@ -147,8 +157,8 @@ sequenceDiagram
         Cache-->>App: Cached value
     end
 
-    App-->>Traefik: HTTP response
-    Traefik-->>User: HTTPS response
+    App-->>Caddy: HTTP response
+    Caddy-->>User: HTTPS response
 ```
 
 ### CI/CD Pipeline

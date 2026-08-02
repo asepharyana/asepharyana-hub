@@ -11,7 +11,7 @@ Dua node terhubung via **Tailscale** overlay network:
 │  Tailscale: 100.x.x.x        │◄──────┤                              │
 │                              │       │  Layanan:                    │
 │  Layanan:                    │       │  ├─ PostgreSQL (port 6432)   │
-│  ├─ Traefik (port 80/443)    │       │  └─ Redis (port 6379)        │
+│  ├─ Caddy (port 80/443)     │       │  └─ Redis (port 6379)        │
 │  ├─ NATS + JetStream         │       │                              │
 │  ├─ Dapr Placement           │       └──────────────────────────────┘
 │  ├─ Redis (cache, Dapr)      │
@@ -30,7 +30,7 @@ Container di `orangevps` tidak bisa langsung mencapai IP Tailscale (`100.x.x.x`)
 Internet
    │
    ▼ Port 443
-Traefik (v3.6)
+Caddy 2.11.4 (auto-TLS LE, HTTP/3)
    ├─ TLS termination (sertifikat dari volume mount)
    ├─ Middleware chain: secure-headers → compress → retry → rate-limit → buffer
    ├─ Plugin: real-ip (Cloudflare), block-sensitive-paths
@@ -40,11 +40,11 @@ Host(`asepharyana.my.id`) || Host(`www.asepharyana.my.id`) → hub
 host(`hub.asepharyana.my.id`) → hub (SPA + dashboard)
 Host(`scraper.asepharyana.my.id`) || Host(`api.asepharyana.my.id`) → scraper-api
    │
-   ├─ hub (Next.js, port 3000)
+   ├─ hub (Next.js, port 4003)
    │   ├─ / — Portfolio SPA
    │   ├─ /dashboard — Ops dashboard (client-side, auto-refresh 15s)
-   │   ├─ /api/dashboard — JSON: Docker containers, Jaeger traces, Prometheus metrics
-   │   └─ Docker socket mounted (:ro) for container discovery
+   │   ├─ /api/dashboard — JSON: systemd services, Jaeger traces, Prometheus metrics
+   │   └─ Metrics via node-exporter + app endpoints
    │
    ▼ Service load balancer
 http://scraper-api:4091
@@ -71,7 +71,7 @@ Semua service berjalan dalam satu Docker Compose project bernama `compose` dan b
 | `nats.yml` | `nats` | Message broker + JetStream persistent streaming |
 | `dapr.yml` | `dapr-placement` | Koordinasi actor placement untuk sidecar Dapr |
 | `scraper.yml` | `scraper-api` + `scraper-api-dapr` | Aplikasi Rust + sidecar Dapr |
-| `hub.yml` | `hub` | Next.js SPA portfolio + dashboard + Docker socket |
+| systemd hub | `hub` | Next.js SPA portfolio + dashboard |
 | `observability.yml` | `otel-collector`, `jaeger`, `prometheus`, `node-exporter` | Tracing, metrics, observability |
 
 ### Dapr Sidecar Pattern
