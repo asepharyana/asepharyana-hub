@@ -11,6 +11,7 @@ node_modules
 .turbo/
 # IDEs and editors
 /.idea
+.serena/
 .project
 .classpath
 .c9/
