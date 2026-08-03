@@ -1,14 +1,11 @@
 name: Nix Build & Deploy — All Services
 
 on:
+  # No `paths` filter: GitHub's path filters do not match submodule gitlink
+  # changes, so a submodule pointer update (e.g. from update-submodule.yml)
+  # would never trigger this deploy. Run on every push to main instead.
   push:
     branches: [main]
-    paths:
-      - 'apps/**'
-      - 'infra/**'
-      - 'flake.nix'
-      - 'flake.lock'
-      - '.github/workflows/nix-build.yml'
   workflow_dispatch:
 
 concurrency:
