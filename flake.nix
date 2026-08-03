@@ -64,7 +64,7 @@
           rev = if name == "hub" then "6829c7efe2a735d249f5135bff4a0fc28411a295"
                else if name == "scraper" then "62aa5b0e52859afe3ba9de1c7b11cfe2dacf6c2c"
                else if name == "tools" then "3956b90c3ce39ffa7ffba8084937f20e11364d6b"
-               else if name == "llm-api" then "7cec411cba7cdefef47650820b5ef57a63a68a57"
+               else if name == "llm-api" then "5f7ead5503082a71d41a36fd1727325c784e4b79"
                else "HEAD";
           submodules = true;
         };
