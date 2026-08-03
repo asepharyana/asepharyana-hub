@@ -11,4 +11,7 @@
   labels:
     service: gmw-backend
     __metrics_path__: /api/metrics
-# llm-api tidak expose /metrics (404) — dihapus dari target.
+# llm-api expose /metrics sejak 2026-08-03 (feat metrics):
+- targets: ['127.0.0.1:4010']
+  labels:
+    service: llm-api
