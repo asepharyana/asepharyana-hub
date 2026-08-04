@@ -101,7 +101,30 @@ dashboard.asepharyana.my.id {
 }
 
 imphnen.asepharyana.my.id {
-	import proxy 4009
+	encode zstd gzip
+	header {
+		-Server
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "SAMEORIGIN"
+		Referrer-Policy "strict-origin-when-cross-origin"
+	}
+	handle /v1/* {
+		reverse_proxy 127.0.0.1:4099 {
+			transport http {
+				keepalive 120s
+				keepalive_interval 30s
+				max_conns_per_host 100
+				dial_timeout 3s
+			}
+		}
+	}
+	handle {
+		# vite dev server punya host protection (Vite 6.3): tolak Host selain localhost
+		# → rewrite Host upstream biar page + HMR websocket diterima
+		reverse_proxy 127.0.0.1:5173 {
+			header_up Host localhost:5173
+		}
+	}
 }
 
 upload.asepharyana.my.id, upload.asepharyana.web.id {
