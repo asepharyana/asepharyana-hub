@@ -40,6 +40,14 @@ asepharyana.my.id, www.asepharyana.my.id, asepharyana.web.id, www.asepharyana.we
 	import proxy 4003
 }
 
+dashboard.asepharyana.my.id {
+	import proxy 4013
+}
+
+imphnen.asepharyana.my.id {
+	import proxy 4009
+}
+
 scraper.asepharyana.my.id, api.asepharyana.my.id, scraper.asepharyana.web.id, api.asepharyana.web.id {
 	import proxy 4091
 }
@@ -96,26 +104,21 @@ ml-zeavisedu.asepharyana.my.id {
 	import proxy 4012
 }
 
-dashboard.asepharyana.my.id {
-	import proxy 4013
-}
-
-imphnen.asepharyana.my.id {
-	import proxy 4009
-}
-
 upload.asepharyana.my.id, upload.asepharyana.web.id {
-	# Upload: no compression (binary), big body allowed, streaming
-	reverse_proxy 127.0.0.1:4000 {
-		transport http {
-			keepalive 120s
-			keepalive_interval 30s
-			max_conns_per_host 100
-			dial_timeout 3s
-		}
-		flush_interval -1
+	# Upload/download besar: JANGAN kompres, JANGAN limit body, flush instan (no buffering)
+	header {
+		-Server
+		X-Content-Type-Options "nosniff"
 	}
 	request_body {
 		max_size 0
+	}
+	reverse_proxy 127.0.0.1:4000 {
+		transport http {
+			dial_timeout 3s
+			read_timeout 300s
+			write_timeout 300s
+		}
+		flush_interval -1
 	}
 }
