@@ -1,5 +1,8 @@
 # ── Caddyfile PRODUKSI v2 — TUNED (auto-TLS Let's Encrypt) ──
 # Tuning: HTTP/3 default, keep-alive upstream, zstd+gzip, timeouts, buffer, TLS 1.3
+# NOTE: file ini adalah source of truth untuk /etc/caddy/Caddyfile di orangevps.
+#       Changes di-deploy otomatis via .github/workflows/caddy-deploy.yml
+#       (push ke main → ssh → cp → systemctl reload caddy).
 
 {
 	email asepharyana@gmail.com
@@ -121,4 +124,35 @@ upload.asepharyana.my.id, upload.asepharyana.web.id {
 		}
 		flush_interval -1
 	}
+}
+
+wiki.asepharyana.my.id {
+	import proxy 4016
+
+	# Phase 7: observability dashboard (public).
+	handle /dashboard {
+		reverse_proxy 127.0.0.1:4020
+	}
+	# Phase 7: Prometheus metrics (public, safe to scrape).
+	handle /metrics {
+		reverse_proxy 127.0.0.1:4020
+	}
+	# Phase 4: tRPC API (search, revisions, job status, restore). Routed to the
+	# API app on :4020 so /trpc/* is reachable on the domain, not swallowed by web.
+	# Forward the full /trpc path (no prefix strip) to match app.all("/trpc/*").
+	handle /trpc/* {
+		reverse_proxy 127.0.0.1:4020
+	}
+	# Phase 3 git-sync webhook: GitHub POSTs push events here -> BullMQ reindex.
+	# Forward the full /hooks path (no prefix strip) to match the API's /hooks/reindex route.
+	handle /hooks/* {
+		reverse_proxy 127.0.0.1:4020
+	}
+	handle /health {
+		reverse_proxy 127.0.0.1:4020
+	}
+}
+
+mcp.asepharyana.my.id {
+	import proxy 4021
 }

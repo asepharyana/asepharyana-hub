@@ -1,6 +1,6 @@
 # Troubleshooting
 
-Kumpulan solusi untuk masalah umum yang spesifik di infrastruktur `asepharyana-hub`.
+Kumpulan solusi untuk masalah umum di infrastruktur `asepharyana/infra` (orangevps).
 
 > **Catatan (2026-08-02):** Produksi sekarang Caddy + Nix/systemd. Section Traefik/Docker di bawah adalah LEGACY — Docker dan Traefik dihapus dari produksi; gunakan hanya sebagai referensi historis.
 
@@ -29,7 +29,7 @@ Kumpulan solusi untuk masalah umum yang spesifik di infrastruktur `asepharyana-h
 | `SSH_PRIVATE_KEY` | Wajib |
 | `VPS_HOST` | Wajib (`45.127.35.244`) |
 | `VPS_USER` | Wajib (`root`) |
-| `VPS_TARGET_DIR` | Wajib (`/root/asepharyana-hub`) |
+| ~~`VPS_TARGET_DIR`~~ | Tidak dipakai lagi (CI baru tidak checkout VPS) |
 | `ENV_FILE_PRODUCTION` | Wajib |
 
 ### Workflow build gagal: "Submodule commit not fetchable"
@@ -40,7 +40,7 @@ Kumpulan solusi untuk masalah umum yang spesifik di infrastruktur `asepharyana-h
 
 ```bash
 # Cek apakah commit ada di remote
-git ls-remote https://github.com/asepharyana/asepharyana-hub-scraper.git <SHA>
+git ls-remote https://github.com/asepharyana/scraper.git <SHA>
 
 # Trigger ulang dispatch dari submodule repo, atau push langsung ke hub
 ```

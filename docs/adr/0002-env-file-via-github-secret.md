@@ -1,8 +1,12 @@
 # ADR 0002: Production `.env` via GitHub Encrypted Secret
 
+> **LEGACY (2026-08-28):** Repo `asepharyana-hub` sudah dirombak → `asepharyana/infra`.
+> Workflow lama yang SCP `.env` ke VPS tidak dipakai lagi (deploy app pindah ke repo masing-masing,
+> secrets via Bitwarden `bws-exec`). ADR ini dipertahankan sebagai arsip.
+
 ## Status
 
-Accepted
+Accepted (archived)
 
 ## Context
 
@@ -33,7 +37,7 @@ Container reads $DATABASE_URL, $JWT_SECRET, etc.
 
 ```bash
 # 1. Read current content from the VPS
-ssh root@45.127.35.244 "cat /root/asepharyana-hub/.env"
+ssh root@45.127.35.244 "cat <VPS app dir, e.g. /home/code/hub>/.env"
 
 # 2. Pipe updated content to the GitHub secret
 #    (requires gh CLI with repo access)
@@ -43,7 +47,7 @@ cat /path/to/updated-env | gh secret set ENV_FILE_PRODUCTION --repo asepharyana/
 gh workflow run deploy-docker.yml
 
 # OR apply immediately on the VPS (for hotfix):
-ssh root@45.127.35.244 "sed -i 's|OLD_VALUE|NEW_VALUE|' /root/asepharyana-hub/.env"
+ssh root@45.127.35.244 "sed -i 's|OLD_VALUE|NEW_VALUE|' <VPS app dir, e.g. /home/code/hub>/.env"
 # Then restart affected containers
 ```
 
@@ -69,7 +73,7 @@ ssh root@45.127.35.244 "sed -i 's|OLD_VALUE|NEW_VALUE|' /root/asepharyana-hub/.e
 The VPS runs a single Docker Compose project named `compose` composed of multiple files:
 
 ```bash
-/root/asepharyana-hub/infra/compose/
+<VPS app dir, e.g. /home/code/hub>/infra/compose/
 ├── traefik.yml         # Reverse proxy (TLS termination, routing)
 ├── shared.yml          # Redis
 ├── nats.yml            # NATS message broker + JetStream
@@ -99,7 +103,7 @@ docker compose \
 | `SSH_PRIVATE_KEY` | SSH key for VPS access |
 | `VPS_HOST` | `45.127.35.244` |
 | `VPS_USER` | `root` |
-| `VPS_TARGET_DIR` | `/root/asepharyana-hub` |
+| `VPS_TARGET_DIR` | `<VPS app dir, e.g. /home/code/hub>` |
 | `ENV_FILE_PRODUCTION` | Full `.env` content for production |
 
 ## Consequences

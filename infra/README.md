@@ -1,97 +1,40 @@
-# Infrastructure
+# Infra — Reverse Proxy & VPS Config
 
-Docker Compose and Traefik configuration for `asepharyana-hub`.
+Config produksi untuk **orangevps** (Caddy reverse proxy + firewall + systemd drop-ins).
 
-## Layout
+## Caddy (`caddy/`)
 
-```text
-infra/
-├── compose/                 # One compose file per stack/service
-│   ├── traefik.yml          # Public reverse proxy
-│   ├── shared.yml           # Shared Redis
-│   ├── nats.yml             # NATS message broker + JetStream
-│   ├── dapr.yml             # Dapr placement service
-│   └── scraper.yml          # Scraper API (app + Dapr sidecar)
-├── docker/                  # Dockerfiles and image runtime helpers
-├── dapr/                    # Dapr component configs
-│   ├── config.yaml          # Global Dapr configuration
-│   └── components/          # Pub/sub (Redis), state store (Redis)
-├── traefik/                 # Dynamic Traefik configuration
-│   ├── dynamic/             # Routers, services, middlewares, TLS certs
-│   └── TRAEFIK_ENV_CONFIG.md
+- `Caddyfile.prod` — **source of truth** untuk `/etc/caddy/Caddyfile`.
+- Site pattern: `<service>.asepharyana.my.id` / `.web.id` → `import proxy <port>`.
+- Auto-TLS Let's Encrypt; HTTP/3 default.
+- Deploy: push `infra/caddy/**` ke `main` → workflow `caddy-deploy.yml` sync + reload + verify.
+
+### Update site baru
+```caddyfile
+myservice.asepharyana.my.id {
+	import proxy 4022
+}
 ```
+Commit + push → CI reload caddy → cek `curl -sI https://myservice.asepharyana.my.id`.
 
-## First-time setup
+## Firewall (`firewall/`)
 
-Create the shared Docker network before starting any service:
+- `firewall.sh` — deny-by-default iptables:
+  - Public: 22 (SSH), 80/443 (Caddy), 4013 (hermes dashboard), 25565 (Minecraft via TCPShield only)
+  - Tailscale CGNAT `100.64.0.0/10`: semua port
+  - Localhost: semua; sisanya DROP + logged.
+- `99-hardening.conf`, `99-ssh-optimization.conf` — sysctl drop-ins.
 
-```bash
-docker network create app-shared-net
-```
+## Prometheus (`prometheus/`)
 
-Create `.env` from `.env.example` and fill production values. Do not commit `.env`.
+- `targets.yml` — file_sd targets untuk Prometheus (node-exporter, app /metrics).
 
-## Deployment order
+## systemd (`systemd/`)
 
-The GitHub deploy workflow combines the active compose files automatically. For manual deployment, use this order:
+- `scraper-otel.conf` — drop-in OTEL exporter untuk `scraper.service`.
 
-```bash
-# 1. Shared services
-docker compose -f infra/compose/shared.yml up -d
+## Deployment Model
 
-# 2. Message bus + Dapr placement
-docker compose -f infra/compose/nats.yml up -d
-docker compose -f infra/compose/dapr.yml up -d
-
-# 3. Reverse proxy
-docker compose -f infra/compose/traefik.yml up -d
-
-# 4. Application services (with Dapr sidecars)
-docker compose -f infra/compose/scraper.yml up -d
-```
-
-## Environment variables
-
-Common variables used by infra compose files:
-
-```env
-DATABASE_URL=
-GITHUB_TOKEN=
-SHARED_REDIS_EXPOSE=127.0.0.1:6379:6379
-```
-
-Traefik certificate path variables are optional because `infra/compose/traefik.yml` provides production-compatible defaults. See `infra/traefik/TRAEFIK_ENV_CONFIG.md` for the full list.
-
-## Traefik
-
-Traefik reads dynamic config from `infra/traefik/dynamic/`:
-
-- `apps.yaml` — routers and upstream services
-- `middlewares.yaml` — shared middleware chains
-- `ssl.yaml` — TLS certificates for `asepharyana.my.id` and `asepharyana.web.id`
-
-## Validation
-
-Run syntax checks after editing infra YAML:
-
-```bash
-python - <<'PY'
-import pathlib, yaml
-for path in pathlib.Path('infra').rglob('*.yml'):
-    with path.open() as fh:
-        yaml.safe_load(fh)
-    print(f'OK {path}')
-for path in pathlib.Path('infra').rglob('*.yaml'):
-    with path.open() as fh:
-        yaml.safe_load(fh)
-    print(f'OK {path}')
-PY
-```
-
-Check compose rendering when Docker is available:
-
-```bash
-for f in infra/compose/*.yml; do
-  docker compose -f "$f" config >/dev/null && echo "OK $f"
-done
-```
+Repo `asepharyana/infra` TIDAK build aplikasi. Aplikasi deploy via repo masing-masing
+(`hub`, `scraper`, `tools`, `llm-api`) dengan `nix build → nix copy → nix-env --profile → systemctl restart`.
+Repo ini hanya mengelola config yang di-sync manual/CI ke VPS.

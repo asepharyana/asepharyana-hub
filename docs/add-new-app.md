@@ -1,167 +1,42 @@
-# Menambahkan Aplikasi Baru ke Deployment
+# Menambahkan Service Baru / Subdomain
 
-Dokumen ini menjelaskan langkah menambahkan service baru ke `asepharyana-hub`. Root repo berfungsi sebagai hub: source aplikasi berada di `apps/<nama-app>` sebagai submodule, sedangkan Docker Compose, Traefik, dan workflow deploy tetap berada di root repo.
+Panduan untuk menambahkan service baru di ekosistem `asepharyana/infra` (2026-08-28+, pasca monorepo).
 
-## 1. Buat repo aplikasi
+## Prinsip
 
-Buat repo baru di GitHub dengan pola nama:
+- **Aplikasi hidup di repo sendiri** (`hub`, `scraper`, `tools`, `llm-api`) dengan
+  `flake.nix` + `.github/workflows/deploy.yml` mandiri. Repo infra TIDAK berisi kode app.
+- Repo infra (`asepharyana/infra`) hanya mengatur **reverse proxy & config VPS**.
 
-```text
-https://github.com/asepharyana/asepharyana-hub-<nama-app>.git
+## Langkah
+
+1. **Buat repo aplikasi** (contoh pola: `asepharyana/scraper`).
+2. **Tambahkan `flake.nix`** di repo app — derivasi Nix (lihat template di repo app yang ada:
+   Next.js/bun atau Rust/cargo). Nama paket = nama unit systemd.
+3. **Tambahkan `.github/workflows/deploy.yml`** (pola `nix build .#<pkg>` → `nix copy ssh://`
+   → `nix-env --profile /nix/var/nix/profiles/<pkg> --set` → `systemctl restart <pkg>`).
+   Secrets yang dibutuhkan: `SSH_PRIVATE_KEY`, `VPS_HOST`, `VPS_USER`.
+4. **Di VPS**: buat user systemd + unit (mis. `/etc/systemd/system/<app>.service`,
+   `ExecStart=/usr/local/bin/bws-exec <app> /nix/var/nix/profiles/<app>/bin/<app>`),
+   pastikan app jalan di port lokal.
+5. **Tambah site block** di `infra/caddy/Caddyfile.prod` (pola `import proxy <port>`),
+   push ke `main` → CI `caddy-deploy.yml` sync + reload + verifikasi rute.
+6. **(Opsional)** Tambah unit ke `MONITORED_UNITS` di hub dashboard
+   (repo `asepharyana/hub`, `src/app/api/dashboard/route.ts`).
+
+## Contoh site block Caddy
+
+```caddyfile
+nama-app.asepharyana.my.id {
+	import proxy <PORT>
+}
 ```
 
-Lalu tambahkan ke root hub sebagai submodule:
+## Verifikasi
 
 ```bash
-git submodule add https://github.com/asepharyana/asepharyana-hub-<nama-app>.git apps/<nama-app>
-git submodule update --init --recursive
-```
+# Dari local
+curl -s -o /dev/null -w '%{http_code}\n' https://nama-app.asepharyana.my.id/
 
-## 2. Tambahkan Dockerfile
-
-Tambahkan Dockerfile runtime di `infra/docker/<nama-app>.Dockerfile`.
-
-Gunakan root repo sebagai build context agar Dockerfile bisa mengakses submodule path:
-
-```bash
-docker build -f infra/docker/<nama-app>.Dockerfile -t <nama-app>:local .
-```
-
-## 3. Tambahkan Compose file
-
-Buat `infra/compose/<nama-app>.yml`:
-
-```yaml
-services:
-  <nama-app>:
-    container_name: <nama-app>
-    image: ghcr.io/asepharyana/asepharyana-hub/<nama-app>:sha-<short-sha>
-    restart: always
-    networks:
-      app-shared-net:
-        aliases:
-          - <nama-app>
-    env_file:
-      - ../../.env
-
-networks:
-  app-shared-net:
-    name: app-shared-net
-    external: true
-```
-
-Gunakan `app-shared-net` agar service dapat diakses oleh Traefik dan service lain.
-
-## 3.5. Tambahkan Dapr sidecar (wajib untuk pub/sub)
-
-Setiap service yang ingin menggunakan Dapr pub/sub atau service invocation harus punya sidecar.
-Tambah di `infra/compose/<nama-app>.yml`:
-
-```yaml
-  <nama-app>-dapr:
-    container_name: <nama-app>-dapr
-    image: daprio/daprd:latest
-    restart: always
-    depends_on:
-      dapr-placement:
-        condition: service_healthy
-      nats:
-        condition: service_healthy
-      otel-collector:
-        condition: service_started
-    networks:
-      - app-shared-net
-    command:
-      - './daprd'
-      - '--app-id=<nama-app>'
-      - '--app-port=<port>'
-      - '--dapr-http-port=3500'
-      - '--dapr-grpc-port=50001'
-      - '--placement-host-address=dapr-placement:50005'
-      - '--config=/dapr/config.yaml'
-      - '--resources-path=/dapr/components'
-    volumes:
-      - ../../infra/dapr:/dapr:ro
-```
-
-Pastikan juga app container punya `depends_on` ke dapr-placement, nats, dan otel-collector:
-```yaml
-    depends_on:
-      dapr-placement:
-        condition: service_healthy
-      nats:
-        condition: service_healthy
-      otel-collector:
-        condition: service_started
-```
-
-## 4. Tambahkan route Traefik
-
-Update `infra/traefik/dynamic/apps.yaml`:
-
-```yaml
-http:
-  routers:
-    <nama-app>:
-      rule: 'Host(`<subdomain>.asepharyana.my.id`) || Host(`<subdomain>.asepharyana.web.id`)'
-      entryPoints:
-        - websecure
-      tls: {}
-      middlewares:
-        - common-chain@file
-      service: <nama-app>-service
-
-  services:
-    <nama-app>-service:
-      loadBalancer:
-        servers:
-          - url: 'http://<nama-app>:<port>'
-```
-
-## 5. Update workflow build
-
-Update `.github/workflows/docker-build-push.yml`:
-
-1. Tambahkan path detection untuk `apps/<nama-app>` dan `infra/docker/<nama-app>.Dockerfile`.
-2. Tambahkan service ke matrix build.
-3. Tambahkan mapping Dockerfile di step `Docker metadata`.
-4. Tambahkan mapping compose file dan submodule path di step `Update tags and submodules`.
-
-## 6. Update workflow deploy
-
-Tambahkan compose file baru ke `ALL_COMPOSE_FILES` di `.github/workflows/deploy-docker.yml`:
-
-```bash
-infra/compose/<nama-app>.yml
-```
-
-## 7. Update dokumentasi
-
-Update file berikut bila service baru mengubah arsitektur publik:
-
-- `README.md`
-- `ARCHITECTURE.md`
-- `infra/README.md`
-- `.gitmodules`
-
-## 8. Validasi
-
-Jalankan validasi YAML dan compose rendering:
-
-```bash
-python - <<'PY'
-import pathlib, yaml
-for path in pathlib.Path('infra').rglob('*.yml'):
-    with path.open() as fh:
-        yaml.safe_load(fh)
-    print(f'OK {path}')
-for path in pathlib.Path('infra').rglob('*.yaml'):
-    with path.open() as fh:
-        yaml.safe_load(fh)
-    print(f'OK {path}')
-PY
-
-for f in infra/compose/*.yml; do
-  docker compose -f "$f" config >/dev/null && echo "OK $f"
-done
-```
+# Dari VPS
+systemctl status <app>

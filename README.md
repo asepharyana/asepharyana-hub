@@ -1,232 +1,57 @@
-# Architecture
+# Asepharyana Infra
 
-## Hub Repository Structure Overview
+Reverse-proxy & infrastructure config for [orangevps](https://asepharyana.my.id) (45.127.35.244).
 
-```diff
-asepharyana-hub/
-├── apps/                    # Application services (Git submodules)
-│   └── scraper/            # Web scraper service
-├── docs/                    # Documentation
-│   ├── adr/                # Architecture Decision Records
-│   ├── add-new-app.md      # Guide for adding new services
-│   └── superpowers/        # Project capabilities tracking
-├── infra/                   # Infrastructure as code
-│   ├── compose/            # Docker Compose files per service
-│   ├── config/             # Infrastructure configuration
-│   ├── docker/             # Dockerfiles per service
-│   └── traefik/            # Traefik reverse proxy config
-│       └── dynamic/        # Dynamic routing rules (YAML)
-├── scripts/                 # Utility scripts
-│   ├── git-hooks/          # Git hook scripts
-│   ├── cleanup-ghcr.sh     # GHCR image cleanup
-│   └── update-deps.sh      # Dependency update helper
-├── .github/workflows/       # CI/CD pipelines
-├── eslint.config.mjs        # Root ESLint config
-├── package.json             # Root formatting/lint helper scripts
-└── .prettierrc              # Prettier formatting rules
-```
+> **Status (2026-08-28):** Repo ini dulunya monorepo `asepharyana-hub` dengan submodule aplikasi.
+> Kini **murni repo infra**: Caddy reverse proxy (source of truth), firewall, drop-in systemd,
+> dan docs. Build + deploy tiap aplikasi pindah ke repo masing-masing (self-contained CI).
 
-## Technology Stack
+## Repositori Aplikasi (self-contained build & deploy)
 
-### Services
+| Repo | Deskripsi | Deploy unit |
+|------|-----------|-------------|
+| [`asepharyana/hub`](https://github.com/asepharyana/hub) | Portfolio SPA (Next.js, port 4003, dashboard) | `hub` |
+| [`asepharyana/scraper`](https://github.com/asepharyana/scraper) | Rust/Axum scraper API (port 4091) | `scraper` |
+| [`asepharyana/tools`](https://github.com/asepharyana/tools) | Tools: Rust gateway/workers + Next.js frontend (3500/3501) | `tools-gateway`, `tools-workers`, `tools-frontend` |
+| [`asepharyana/llm-api`](https://github.com/asepharyana/llm-api) | Rust LLM API (llama.cpp, port 8080) | `llm-api` |
 
-|| Service   | Path           | Language/Runtime | Framework | Database | Key Libraries |
-||---------|----------------|------------------|-----------|----------|---------------|
-|| **scraper** | `apps/scraper` | — | — | — | — |
+Tiap repo punya `flake.nix` + `.github/workflows/deploy.yml` sendiri:
+`nix build .#<pkg>` → `nix copy ssh://` → `nix-env --profile` → `systemctl restart`.
+Push ke `main` (atau `workflow_dispatch`) langsung deploy; tidak ada lagi pointer submodule.
 
-### Infrastructure
+## Infra di Repo Ini
 
-|| Component          | Technology              | Purpose                                                          |
-||---------------------|-------------------------|------------------------------------------------------------------|
-|| Reverse Proxy       | Traefik v3.6            | TLS termination, routing, middleware (rate-limit, headers, auth) |
-|| Container Runtime   | Docker + Docker Compose | Service isolation and orchestration                              |
-|| Container Registry  | GHCR (ghcr.io)          | Docker image storage                                             |
-|| Networking          | Tailscale               | Secure overlay network between VPS nodes                         |
-|| Message Bus         | NATS + JetStream        | Event-driven pub/sub, job queues, streaming                      |
-|| Runtime Sidecar     | Dapr                    | Service invocation, pub/sub abstraction, state management        |
-|| Cache & State       | Redis (Alpine)          | Session store, rate limit counters, caching, Dapr state store    |
-|| CI/CD               | GitHub Actions          | Build, test, deploy automation                                   |
+| Path | Isi |
+|------|-----|
+| `infra/caddy/Caddyfile.prod` | **Source of truth** `/etc/caddy/Caddyfile` (auto-deploy via CI) |
+| `infra/firewall/firewall.sh` | deny-by-default iptables (SSH/80/443/4013/Tailscale/TCPShield) |
+| `infra/firewall/99-*.conf` | sysctl hardenings |
+| `infra/prometheus/targets.yml` | file_sd targets |
+| `infra/systemd/scraper-otel.conf` | drop-in OTEL untuk scraper service |
+| `docs/` | arsitektur + operasional (VPS) |
 
-### Infrastructure
+## CI/CD
 
-### Traefik Reverse Proxy
+| Workflow | Trigger | Aksi |
+|----------|---------|------|
+| `caddy-deploy.yml` | push main menyentuh `infra/**`, atau manual | sync `Caddyfile.prod` → `/etc/caddy/Caddyfile` → reload → verifikasi rute |
 
-Traefik runs as the entry point for all HTTP/S traffic. It is configured via:
-
-- **Static config**: CLI arguments in `infra/compose/traefik.yml` — entry points, providers, plugins
-- **Dynamic config**: `infra/traefik/dynamic/` — routers, services, middlewares, TLS
-- **Docker provider**: Auto-discovers containers with `traefik.enable=true` labels
-- **File provider**: Loads `apps.yaml` (routers/services), `middlewares.yaml`, `ssl.yaml`
-
-Key middleware chains (`infra/traefik/dynamic/middlewares.yaml`):
-
-- `secure-headers` — SSL redirect, HSTS, XSS protection, CSP
-- `compress` — Gzip compression for responses over 256 bytes
-- `rate-limit` — 100 avg / 50 burst requests
-- `buffer` — 10MB request/response body limit
-- `block-sensitive-paths` — blocks `.env`, `.git`, `/wp-admin` etc.
-- `common-chain` — composes secure-headers + compress + retry + rate-limit + buffer
-
-All services route through Traefik on port 443 (TLS), with automatic HTTP-to-HTTPS redirect.
-
-### Docker Compose
-
-Each service has its own Compose file under `infra/compose/`. All services join the `app-shared-net` external Docker network, enabling inter-service communication by container name.
-
-Shared services:
-
-- `infra/compose/shared.yml` — Redis (alias: `redis`)
-- `infra/compose/traefik.yml` — Traefik reverse proxy
-
-Service compose files are combined during deployment:
+## Local Setup / Snapshot VPS
 
 ```bash
-docker compose -f traefik.yml -f shared.yml -f scraper.yml up -d
+# Clone infra repo
+git clone https://github.com/asepharyana/infra.git
+# Diff config live vs repo
+diff /etc/caddy/Caddyfile infra/caddy/Caddyfile.prod
+# Koneksi VPS (public)
+ssh code@45.127.35.244
 ```
 
-### Tailscale Networking
+## Menambahkan Service Baru / Subdomain
 
-### Arsitektur
+1. Aplikasi punya repo sendiri + `deploy.yml` (lihat template di repo app yang ada).
+2. Registrasi unit systemd di VPS (manual/ops) → app jalan di port lokal.
+3. Tambah site block di `infra/caddy/Caddyfile.prod` (pola `import proxy <port>`) → push → CI reload Caddy.
+4. (Opsional) Tambah unit ke `MONITORED_UNITS` dashboard hub di repo `asepharyana/hub`.
 
-Semua VPS terhubung via **Tailscale**. Setiap VPS punya IP Tailscale dan service berkomunikasi antar VPS melalui Tailscale network (`100.64.0.0/10`). Container-to-Tailscale connectivity requires a systemd service that adds a route to the main routing table:
-
-```bash
-ip route add 100.64.0.0/10 dev tailscale0 table main
-```
-
-This is managed by `/etc/systemd/system/tailscale-routes.service` on the `orangevps` VPS.
-
-### Data Flow
-
-### Request Flow (Production)
-
-```mermaid
-sequenceDiagram
-    participant User as Browser/Client
-    participant DNS as Cloudflare DNS
-    participant Traefik as Traefik Proxy
-    participant App as Application Container
-    participant DB as PostgreSQL (imrnes via Tailscale)
-    participant Redis as Redis (imrnes via Tailscale)
-
-    User->>DNS: asepharyana.my.id
-    DNS->>User: A/AAAA record → orangevps VPS IP
-    User->>Traefik: HTTPS request :443
-    Traefik->>Traefik: TLS termination
-    Traefik->>Traefik: Middleware chain (headers, rate-limit, buffer)
-    Traefik->>App: HTTP reverse-proxy (internal network)
-
-    alt Database query
-        App->>DB: sqlx/Drizzle query via Tailscale
-        DB-->>App: Result set
-    else Cache lookup
-        App->>Cache: GET/SET via Tailscale
-        Cache-->>App: Cached value
-    end
-
-    App-->>Traefik: HTTP response
-    Traefik-->>User: HTTPS response
-```
-
-### CI/CD Pipeline
-
-```mermaid
-flowchart LR
-    A[Push to main] --> B{Changed paths?}
-    B -->|apps/** or infra/docker/**| C[Build Docker Images]
-    B -->|infra/compose/**| D[Deploy to VPS]
-    B -->|apps/*/src/**/*.ts| E[Lint + TypeCheck]
-
-    C --> F[Push to GHCR]
-    F --> G[Update Compose tags]
-    G --> D
-
-    D --> H[SSH into VPS]
-    H --> I[Pull images]
-    I --> J[docker compose up -d]
-
-    subgraph "Build Phase"
-        C
-        F
-        G
-    end
-
-    subgraph "Deploy Phase"
-        D
-        H
-        I
-        J
-    end
-```
-
-### Deployment Architecture
-
-### Image Tags
-
-- `latest` — mutable, for convenience
-- `sha-<short-sha>` — immutable, for deterministic rollbacks
-- Build cache: `sha-<short>-buildcache`
-
-Registry: `ghcr.io/asepharyana/asepharyana-hub/<service>`
-
-## Deployment Notes
-
-- Pipeline memakai image tag berbasis commit SHA (`sha-<short-sha>`), bukan `latest`.
-- Deploy Compose sekarang mencakup `infra/compose/*.yml` dan `deploy-docker.yml` akan berjalan langsung ketika `infra/compose/**` berubah.
-- Selective deployment: hanya compose file yg berubah yang di-redeploy.
-
-## Networking & Tailscale
-
-### Arsitektur
-
-Semua VPS terhubung via **Tailscale**. Setiap VPS punya IP Tailscale dan service berkomunikasi antar VPS melalui Tailscale network (`100.64.0.0/10`). Container-to-Tailscale connectivity requires a systemd service that adds a route to the main routing table:
-
-```bash
-ip route add 100.64.0.0/10 dev tailscale0 table main
-```
-
-This is managed by `/etc/systemd/system/tailscale-routes.service` on the `orangevps` VPS.
-
-### Environment Variables
-
-Service yang connect ke Tailscale IP:
-
-```env
-# PostgreSQL di imrnes
-DATABASE_URL=postgres://user:***@100.121.180.82:6432/dbname
-
-# Redis di imrnes
-REDIS_URL=redis://100.121.180.82:6379
-```
-
-## Submodule Strategy
-
-Each application lives in its own Git repository and is imported as a submodule into `apps/`. This approach:
-
-- **Enables independent development** — each service can be developed, tested, and versioned separately
-- **Pins exact commits** — the super-repository tracks exact submodule SHAs, enabling reproducible deployments
-- **Supports `repository_dispatch`** — when a submodule receives a push, it can trigger the super-repository to build and deploy only that service
-
-### Submodule Lifecycle
-
-1. Developer pushes to a submodule (e.g., `apps/scraper`)
-2. Submodule's GitHub Action dispatches `repository_dispatch` to the super-repo with the service name and new SHA
-3. Super-repo detects the dispatch, waits for the SHA to be fetchable, then builds only that service
-4. The compose manifest is updated and committed with the new SHA tag
-5. The deploy workflow runs and updates only the changed containers
-
-### Updating Submodules
-
-```bash
-# Update a single submodule to latest
-cd apps/scraper
-git checkout main
-git pull
-cd ../..
-git add apps/scraper
-git commit -m "chore(scraper): update submodule to latest"
-```
-
-## License
-
-MIT
+Lihat `docs/add-new-app.md` untuk detail.

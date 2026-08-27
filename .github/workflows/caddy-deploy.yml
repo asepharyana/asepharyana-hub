@@ -1,0 +1,76 @@
+name: Deploy Caddy Config
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'infra/caddy/**'
+      - 'infra/firewall/**'
+      - 'infra/systemd/**'
+  workflow_dispatch:
+
+concurrency:
+  group: caddy-deploy
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+env:
+  VPS_HOST: ${{ secrets.VPS_HOST }}
+  VPS_USER: ${{ secrets.VPS_USER }}
+
+jobs:
+  deploy-caddy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Setup SSH key
+        env:
+          SSH_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+        run: |
+          mkdir -p ~/.ssh
+          echo "$SSH_KEY" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          sed -i 's/\r$//' ~/.ssh/id_ed25519
+          ssh-keygen -y -f ~/.ssh/id_ed25519 >/dev/null 2>&1 || { echo "SSH key invalid"; exit 1; }
+          ssh-keyscan -H "$VPS_HOST" >> ~/.ssh/known_hosts 2>/dev/null
+
+      - name: Validate Caddyfile syntax
+        run: |
+          # Basic sanity: no obviously empty file, brace count balanced
+          test -s infra/caddy/Caddyfile.prod || { echo "Caddyfile.prod missing/empty"; exit 1; }
+          opens=$(grep -c '{' infra/caddy/Caddyfile.prod || true)
+          closes=$(grep -c '}' infra/caddy/Caddyfile.prod || true)
+          echo "braces open=$opens close=$closes"
+          [ "$opens" = "$closes" ] || { echo "unbalanced braces"; exit 1; }
+
+      - name: Sync Caddyfile to VPS
+        run: |
+          set -e
+          # Backup current config, then push the new one
+          ssh "$VPS_USER@$VPS_HOST" "sudo cp /etc/caddy/Caddyfile /etc/caddy/Caddyfile.bak-previous"
+          scp -q infra/caddy/Caddyfile.prod "$VPS_USER@$VPS_HOST":/tmp/Caddyfile.new
+          ssh "$VPS_USER@$VPS_HOST" "sudo cp /tmp/Caddyfile.new /etc/caddy/Caddyfile && sudo rm -f /tmp/Caddyfile.new"
+          echo "✅ Caddyfile synced"
+
+      - name: Reload Caddy
+        run: |
+          ssh "$VPS_USER@$VPS_HOST" "sudo systemctl reload caddy || sudo systemctl restart caddy"
+          sleep 3
+          ssh "$VPS_USER@$VPS_HOST" "systemctl is-active caddy"
+
+      - name: Verify routes
+        run: |
+          set -e
+          for u in hub.asepharyana.my.id scraper.asepharyana.my.id tools.asepharyana.my.id wiki.asepharyana.my.id upload.asepharyana.my.id ai.asepharyana.my.id; do
+            code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 10 "https://$u/" || true)
+            echo "$u -> $code"
+            # 000/000 means route didn't answer; 404 on root is fine for API-first apps
+            case "$code" in
+              000|502|503|504) echo "::error::$u bad status $code"; exit 1 ;;
+            esac
+          done
+          echo "✅ All routes reachable"
