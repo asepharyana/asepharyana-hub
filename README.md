@@ -12,11 +12,10 @@ Reverse-proxy & infrastructure config for [orangevps](https://asepharyana.my.id)
 |------|-----------|-------------|
 | [`asepharyana/hub`](https://github.com/asepharyana/hub) | Portfolio SPA (Next.js, port 4003, dashboard) | `hub` |
 | [`asepharyana/scraper`](https://github.com/asepharyana/scraper) | Rust/Axum scraper API (port 4091) | `scraper` |
-| [`asepharyana/tools`](https://github.com/asepharyana/tools) | Tools: Rust gateway/workers + Next.js frontend (3500/3501) | `tools-gateway`, `tools-workers`, `tools-frontend` |
 | [`asepharyana/llm-api`](https://github.com/asepharyana/llm-api) | Rust LLM API (llama.cpp, port 8080) | `llm-api` |
 
 Tiap repo punya `flake.nix` + `.github/workflows/deploy.yml` sendiri:
-`nix build .#<pkg>` → `nix copy ssh://` → `nix-env --profile` → `systemctl restart`.
+`nix build .#<pkg>` → **push ke Attic binary cache** (`attic.asepharyana.my.id/asepharyana`) → VPS substitute via `nix-store --realise` → `nix-env --profile` → `systemctl restart`.
 Push ke `main` (atau `workflow_dispatch`) langsung deploy; tidak ada lagi pointer submodule.
 
 ## Infra di Repo Ini

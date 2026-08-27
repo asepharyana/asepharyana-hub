@@ -4,7 +4,7 @@ Panduan untuk menambahkan service baru di ekosistem `asepharyana/infra` (2026-08
 
 ## Prinsip
 
-- **Aplikasi hidup di repo sendiri** (`hub`, `scraper`, `tools`, `llm-api`) dengan
+- **Aplikasi hidup di repo sendiri** (`hub`, `scraper`, `llm-api`) dengan
   `flake.nix` + `.github/workflows/deploy.yml` mandiri. Repo infra TIDAK berisi kode app.
 - Repo infra (`asepharyana/infra`) hanya mengatur **reverse proxy & config VPS**.
 

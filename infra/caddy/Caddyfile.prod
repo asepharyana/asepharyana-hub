@@ -59,10 +59,6 @@ ai.asepharyana.my.id, ai.asepharyana.web.id {
 	import proxy 4010
 }
 
-tools.asepharyana.my.id, tools.asepharyana.web.id {
-	import proxy 4007
-}
-
 9router.asepharyana.my.id {
 	# LLM streaming: 9router combo models punya TTFT sampe 30-40s (deepseek,
 	# fallback chain). Default (proxy) response_header_timeout 30s / read 60s
