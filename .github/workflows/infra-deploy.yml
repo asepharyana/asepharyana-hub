@@ -1,4 +1,4 @@
-name: Deploy Caddy Config
+name: Deploy Infra Config
 
 on:
   push:
@@ -7,10 +7,11 @@ on:
       - 'infra/caddy/**'
       - 'infra/firewall/**'
       - 'infra/systemd/**'
+      - 'infra/prometheus/**'
   workflow_dispatch:
 
 concurrency:
-  group: caddy-deploy
+  group: infra-deploy
   cancel-in-progress: false
 
 permissions:
@@ -21,16 +22,15 @@ env:
   VPS_USER: ${{ secrets.VPS_USER }}
 
 jobs:
-  deploy-caddy:
+  deploy-infra:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v7
 
       - name: Validate Caddyfile syntax
         run: |
-          # Real Caddy parser (better than naive brace counting)
-          curl -fsSL https://caddyserver.com/api/download?os=linux\&arch=amd64 -o /tmp/caddy
+          curl -fsSL "https://caddyserver.com/api/download?os=linux&arch=amd64" -o /tmp/caddy
           chmod +x /tmp/caddy
           /tmp/caddy validate --config infra/caddy/Caddyfile.prod --adapter caddyfile 2>&1 | tail -5
           echo "✅ Caddyfile valid"
@@ -49,11 +49,38 @@ jobs:
       - name: Sync Caddyfile to VPS
         run: |
           set -e
-          # Backup current config, then push the new one
           ssh "$VPS_USER@$VPS_HOST" "sudo cp /etc/caddy/Caddyfile /etc/caddy/Caddyfile.bak-previous"
           scp -q infra/caddy/Caddyfile.prod "$VPS_USER@$VPS_HOST":/tmp/Caddyfile.new
           ssh "$VPS_USER@$VPS_HOST" "sudo cp /tmp/Caddyfile.new /etc/caddy/Caddyfile && sudo rm -f /tmp/Caddyfile.new"
           echo "✅ Caddyfile synced"
+
+      - name: Sync systemd drop-ins to VPS
+        run: |
+          set -e
+          if [ -d infra/systemd ]; then
+            for f in infra/systemd/*; do
+              [ -f "$f" ] || continue
+              base=$(basename "$f")
+              echo "  syncing $base"
+              scp -q "$f" "$VPS_USER@$VPS_HOST":/tmp/"$base"
+              ssh "$VPS_USER@$VPS_HOST" "sudo mkdir -p /etc/systemd/system && sudo cp /tmp/$base /etc/systemd/system/$base && sudo rm -f /tmp/$base"
+            done
+            ssh "$VPS_USER@$VPS_HOST" "sudo systemctl daemon-reload"
+            echo "✅ systemd drop-ins synced"
+          else
+            echo "no infra/systemd/ files"
+          fi
+
+      - name: Sync prometheus targets to VPS
+        run: |
+          set -e
+          if [ -f infra/prometheus/targets.yml ]; then
+            scp -q infra/prometheus/targets.yml "$VPS_USER@$VPS_HOST":/tmp/targets.yml
+            ssh "$VPS_USER@$VPS_HOST" "sudo cp /tmp/targets.yml /etc/prometheus/targets.yml 2>/dev/null && sudo rm -f /tmp/targets.yml && sudo systemctl reload prometheus 2>/dev/null || true"
+            echo "✅ prometheus targets synced"
+          else
+            echo "no infra/prometheus/targets.yml"
+          fi
 
       - name: Reload Caddy
         run: |
