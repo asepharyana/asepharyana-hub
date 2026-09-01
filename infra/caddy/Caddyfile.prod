@@ -51,6 +51,10 @@ imphnen.asepharyana.my.id {
 	import proxy 4009
 }
 
+gmw.asepharyana.my.id {
+	import proxy 4009
+}
+
 scraper.asepharyana.my.id, api.asepharyana.my.id, scraper.asepharyana.web.id, api.asepharyana.web.id {
 	import proxy 4091
 }
