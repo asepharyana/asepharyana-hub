@@ -152,6 +152,26 @@ wiki.asepharyana.my.id {
 		reverse_proxy 127.0.0.1:4020
 	}
 }
+mcpedia.asepharyana.my.id {
+	import proxy 4016
+
+	# Alias mcpedia -> wiki (same app): observability/trpc/hooks/health routes.
+	handle /dashboard {
+		reverse_proxy 127.0.0.1:4020
+	}
+	handle /metrics {
+		reverse_proxy 127.0.0.1:4020
+	}
+	handle /trpc/* {
+		reverse_proxy 127.0.0.1:4020
+	}
+	handle /hooks/* {
+		reverse_proxy 127.0.0.1:4020
+	}
+	handle /health {
+		reverse_proxy 127.0.0.1:4020
+	}
+}
 
 mcp.asepharyana.my.id {
 	import proxy 4021
